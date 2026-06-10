@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f5f3ef">
-<title>Maplab v0.7</title>
+<title>Maplab v0.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -469,6 +469,44 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 #recenter-btn.visible { display: flex; }
 #recenter-btn:active { background: var(--surface2); transform: scale(0.94); }
 
+/* Destination address input — collapsed by default */
+#dest-row {
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+#dest-toggle {
+  font-size: 0.72rem; color: var(--accent); background: none; border: none;
+  padding: 0; cursor: pointer; text-align: left; font-family: var(--sans);
+  width: fit-content;
+}
+#dest-input-wrap {
+  display: none; flex-direction: row; gap: 0.4rem; align-items: center;
+}
+#dest-input-wrap.open { display: flex; }
+#dest-address-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-family: var(--sans);
+  font-size: 0.82rem; padding: 0.4rem 0.6rem; outline: none;
+}
+#dest-address-input:focus { border-color: var(--accent); }
+#dest-set-btn { flex-shrink: 0; }
+#dest-clear-btn {
+  flex-shrink: 0; display: none;
+}
+#dest-clear-btn.visible { display: inline-flex; }
+
+/* Pin tap popup — floats above tapped point */
+#pin-popup {
+  position: absolute;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.5rem 0.75rem;
+  box-shadow: var(--shadow-md); z-index: 30;
+  display: none; flex-direction: column; gap: 0.35rem;
+  min-width: 140px; transform: translate(-50%, -110%);
+}
+#pin-popup.open { display: flex; }
+#pin-popup .pin-popup-label { font-size: 0.75rem; font-weight: 600; color: var(--text2); }
+#pin-popup .pin-popup-btns { display: flex; gap: 0.35rem; }
+
 /* ── MODAL ── */
 #modal-backdrop {
   position: fixed; inset: 0; background: rgba(26,26,24,0.5);
@@ -506,7 +544,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-apikey" class="screen active">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.7</div>
+    <div class="vtag">v0.8</div>
   </div>
   <div class="center-card">
     <div class="card-title">Google Maps Setup</div>
@@ -523,7 +561,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-mode" class="screen">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.7</div>
+    <div class="vtag">v0.8</div>
   </div>
   <div class="mode-grid">
     <div class="mode-card" onclick="enterMode('driver')">
@@ -546,7 +584,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
     <span class="badge admin">Admin</span>
-    <div class="vtag">v0.7</div>
+    <div class="vtag">v0.8</div>
     <span class="sdot" id="sb-dot" style="margin-left:0.25rem;"></span>
     <span id="sb-label" style="font-size:0.7rem;color:var(--text3);">connecting…</span>
 
@@ -727,7 +765,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="driver-screen" class="screen">
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
-    <div class="vtag">v0.7</div>
+    <div class="vtag">v0.8</div>
     <div id="property-chip" onclick="togglePropertySelect()" style="margin-left:0.4rem;">
       <div id="prop-dot"></div>
       <span id="prop-chip-label">Select property</span>
@@ -744,6 +782,13 @@ input[type=range].driver-slider::-webkit-slider-thumb {
     <canvas id="overlay-canvas"></canvas>
     <div id="prop-select-panel"></div>
     <button id="recenter-btn" onclick="recenterOnDriver()" title="Re-center on my location">◎</button>
+    <div id="pin-popup">
+      <div class="pin-popup-label">Destination pin</div>
+      <div class="pin-popup-btns">
+        <button class="btn danger xs" onclick="clearDestinationPin()">Clear</button>
+        <button class="btn ghost xs" onclick="closePinPopup()">Cancel</button>
+      </div>
+    </div>
   </div>
   <div id="driver-controls">
     <div class="slider-row" id="opacity-row" style="display:none;">
@@ -751,6 +796,15 @@ input[type=range].driver-slider::-webkit-slider-thumb {
       <input type="range" class="driver-slider" id="opacity-slider" min="0" max="100" value="50"
              oninput="updateOpacity(this.value)">
       <span class="slider-val" id="opacity-val">50%</span>
+    </div>
+    <div id="dest-row">
+      <button id="dest-toggle" onclick="toggleDestInput()">＋ Set destination</button>
+      <div id="dest-input-wrap">
+        <input type="text" id="dest-address-input" placeholder="Address or tap map to drop pin"
+               onkeydown="if(event.key==='Enter')geocodeDestination()">
+        <button class="btn sm" id="dest-set-btn" onclick="geocodeDestination()">Go</button>
+        <button class="btn danger sm" id="dest-clear-btn" onclick="clearDestinationPin()">✕</button>
+      </div>
     </div>
     <button id="activate-btn" class="btn" onclick="toggleOverlay()" disabled>Show Property Overlay</button>
   </div>
@@ -810,6 +864,9 @@ let previewActive = false, previewImage = null;
 // Driver
 let driverOverlayImage = null, overlayTransform = null, overlayOpacity = 0.5;
 let driverLastPos = null; // last known GPS position
+let destinationPin = null; // google.maps.Marker for driver-dropped destination
+let recenterStep = 0;    // double-action re-center: 0=unset, 1=context, 2=close
+let destInputOpen = false; // whether address input is expanded
 
 // ════════════════════════════════════════
 //  INIT
@@ -817,18 +874,13 @@ let driverLastPos = null; // last known GPS position
 async function init() {
   initSupabase();
   apiKey = localStorage.getItem('ml_api_key');
-  // Check for ?property= URL parameter — pre-selects driver mode and property
   const urlParams = new URLSearchParams(window.location.search);
   const urlPropertyId = urlParams.get('property');
-  if (urlPropertyId) {
-    // Store for use after maps load
-    window._urlPropertyId = urlPropertyId;
-  }
+  const urlDestination = urlParams.get('destination');
+  if (urlPropertyId) window._urlPropertyId = urlPropertyId;
+  if (urlDestination) window._urlDestination = urlDestination;
   showScreen(apiKey ? 'screen-mode' : 'screen-apikey');
-  // If we have both an API key and a property param, go straight to driver mode
-  if (apiKey && urlPropertyId) {
-    await enterMode('driver');
-  }
+  if (apiKey && urlPropertyId) await enterMode('driver');
 }
 function saveApiKey() {
   const k = document.getElementById('api-key-input').value.trim();
@@ -844,8 +896,11 @@ function showScreen(id) {
 function goToMode() {
   if (overlayActive) toggleOverlay();
   releaseWakeLock();
+  if (destinationPin) { destinationPin.setMap(null); destinationPin = null; }
+  if (driverMap && driverMap._blueDot) { driverMap._blueDot.setMap(null); driverMap._blueDot = null; }
+  if (driverMap && driverMap._accuracyCircle) { driverMap._accuracyCircle.setMap(null); driverMap._accuracyCircle = null; }
   driverMap = null; adminMap = null; currentPropId = null; currentProp = null; overlayImageUrl = null;
-  driverLastPos = null;
+  driverLastPos = null; recenterStep = 0; destInputOpen = false;
   showScreen('screen-mode');
 }
 
@@ -870,10 +925,17 @@ async function enterMode(mode) {
     await loadMapsScript();
     initDriverMap();
     await refreshDriverPropertyList();
-    // Auto-select property if URL parameter was set
     if (window._urlPropertyId) {
       await selectDriverProperty(window._urlPropertyId);
-      window._urlPropertyId = null; // consume it
+      window._urlPropertyId = null;
+    }
+    // Auto-geocode destination from URL param after maps ready
+    if (window._urlDestination) {
+      document.getElementById('dest-address-input').value = window._urlDestination;
+      destInputOpen = true;
+      document.getElementById('dest-input-wrap').classList.add('open');
+      geocodeDestination();
+      window._urlDestination = null;
     }
   } else {
     showScreen('admin-screen');
@@ -1642,18 +1704,62 @@ function initDriverMap() {
     mapTypeId: 'roadmap', disableDefaultUI: true, gestureHandling: 'greedy',
   });
 
-  // Track last known driver position — used for snap-on-activate and re-center
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(p => {
-      driverLastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-      driverMap.setCenter(driverLastPos);
-    }, null, { enableHighAccuracy: true });
+  // ── Blue dot: re-enable location display that disableDefaultUI killed ──
+  driverMap.setOptions({ myLocationButton: false });
+  const locationButton = document.createElement('div'); // dummy — we use our own re-center btn
+  new google.maps.TrafficLayer(); // warm up; actual location dot needs the option below
+  // The correct way to show blue dot with disableDefaultUI is via ControlPosition:
+  driverMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(locationButton);
 
+  // Enable the native location marker (blue dot) explicitly
+  if (navigator.geolocation) {
+    let firstFix = true;
     navigator.geolocation.watchPosition(p => {
-      driverLastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-      // No auto-pan — driver controls the map. Re-center button brings them back.
-    }, null, { enableHighAccuracy: true });
+      const { latitude: lat, longitude: lng, accuracy } = p.coords;
+      // Only trust fixes with accuracy better than 200m to avoid stale home-location snapping
+      if (accuracy > 200) return;
+      driverLastPos = { lat, lng };
+
+      // Place/update blue dot marker manually since we killed the default UI
+      if (!driverMap._blueDot) {
+        driverMap._blueDot = new google.maps.Marker({
+          map: driverMap,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: '#4285F4',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2.5,
+          },
+          zIndex: 999,
+          title: 'Your location',
+        });
+        // Accuracy ring
+        driverMap._accuracyCircle = new google.maps.Circle({
+          map: driverMap,
+          strokeColor: '#4285F4', strokeOpacity: 0.25, strokeWeight: 1,
+          fillColor: '#4285F4', fillOpacity: 0.08,
+        });
+      }
+      driverMap._blueDot.setPosition({ lat, lng });
+      driverMap._accuracyCircle.setCenter({ lat, lng });
+      driverMap._accuracyCircle.setRadius(accuracy);
+
+      // On first good fix, center the map
+      if (firstFix) {
+        firstFix = false;
+        driverMap.setCenter({ lat, lng });
+      }
+    }, null, { enableHighAccuracy: true, maximumAge: 5000 });
   }
+
+  // ── Tap map: drop destination pin (or close popup if open) ──
+  driverMap.addListener('click', e => {
+    const popup = document.getElementById('pin-popup');
+    if (popup.classList.contains('open')) { closePinPopup(); return; }
+    dropDestinationPin(e.latLng.lat(), e.latLng.lng(), 'Tap to navigate here');
+  });
 
   driverMap.addListener('bounds_changed', drawDriverOverlay);
   driverMap.addListener('zoom_changed', drawDriverOverlay);
@@ -1662,7 +1768,80 @@ function initDriverMap() {
 
 function recenterOnDriver() {
   if (!driverLastPos || !driverMap) return;
+  // Double-action: first tap = context view (zoom 17), second tap = close view (zoom 19)
+  recenterStep = (recenterStep === 1) ? 2 : 1;
   driverMap.setCenter(driverLastPos);
+  driverMap.setZoom(recenterStep === 1 ? 17 : 19);
+}
+
+// ── Destination pin ──
+function dropDestinationPin(lat, lng, label) {
+  if (destinationPin) destinationPin.setMap(null);
+  destinationPin = new google.maps.Marker({
+    position: { lat, lng }, map: driverMap,
+    title: label || 'Destination',
+    icon: {
+      path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+      scale: 6, fillColor: '#d97706', fillOpacity: 1,
+      strokeColor: '#fff', strokeWeight: 2,
+    },
+    zIndex: 100,
+  });
+  // Tap existing pin → show popup with clear option
+  destinationPin.addListener('click', e => {
+    showPinPopup(e.domEvent, lat, lng);
+  });
+  document.getElementById('dest-clear-btn').classList.add('visible');
+  toast('Destination pin dropped — tap pin to clear');
+}
+
+function showPinPopup(domEvent, lat, lng) {
+  const popup = document.getElementById('pin-popup');
+  // Position popup over the pin on screen
+  const mapDiv = document.getElementById('driver-gmap');
+  const rect = mapDiv.getBoundingClientRect();
+  const proj = driverMap.getProjection();
+  const scale = Math.pow(2, driverMap.getZoom());
+  const bounds = driverMap.getBounds();
+  const nw = proj.fromLatLngToPoint(new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng()));
+  const pt = proj.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
+  const px = (pt.x - nw.x) * scale;
+  const py = (pt.y - nw.y) * scale;
+  popup.style.left = px + 'px';
+  popup.style.top = py + 'px';
+  popup.classList.add('open');
+}
+
+function closePinPopup() {
+  document.getElementById('pin-popup').classList.remove('open');
+}
+
+function clearDestinationPin() {
+  if (destinationPin) { destinationPin.setMap(null); destinationPin = null; }
+  document.getElementById('dest-clear-btn').classList.remove('visible');
+  document.getElementById('dest-address-input').value = '';
+  closePinPopup();
+  toast('Destination cleared');
+}
+
+function toggleDestInput() {
+  destInputOpen = !destInputOpen;
+  document.getElementById('dest-input-wrap').classList.toggle('open', destInputOpen);
+  document.getElementById('dest-toggle').textContent = destInputOpen ? '− Set destination' : '＋ Set destination';
+  if (destInputOpen) setTimeout(() => document.getElementById('dest-address-input').focus(), 50);
+}
+
+async function geocodeDestination() {
+  const addr = document.getElementById('dest-address-input').value.trim();
+  if (!addr) { toast('Enter an address first'); return; }
+  if (!geocoder) geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ address: addr }, (results, status) => {
+    if (status !== 'OK' || !results[0]) { toast('Address not found — try adding city/state'); return; }
+    const loc = results[0].geometry.location;
+    dropDestinationPin(loc.lat(), loc.lng(), addr);
+    driverMap.setCenter(loc);
+    toast('Destination set ✓');
+  });
 }
 
 async function refreshDriverPropertyList() {
