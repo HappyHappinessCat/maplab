@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f5f3ef">
+<title>Maplab v0.7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --border: #d8d4cc;
+  --accent: #1a56db;
+  --accent-light: #e8f0fe;
+  --accent2: #0a7c5c;
+  --accent2-light: #e6f4ef;
+  --text: #1a1a18;
+  --text2: #6b6860;
+  --text3: #9a9690;
+  --danger: #c0392b;
+  --warn: #d97706;
+  --warn-light: #fef3c7;
+  --success: #0a7c5c;
+  --success-light: #e6f4ef;
+  --strip: 48px;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+.screen { display: none; flex-direction: column; height: 100dvh; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 50px; flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 0.75rem; gap: 0.6rem;
+  z-index: 50; box-shadow: var(--shadow);
+}
+.logo { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text); }
+.logo em { color: var(--accent); font-style: normal; }
+.vtag { font-family: var(--mono); font-size: 0.6rem; color: var(--text3); letter-spacing: 0.1em;
+        background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.topbar-right { margin-left: auto; display: flex; gap: 0.45rem; align-items: center; }
+.badge { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+         padding: 2px 8px; border-radius: 20px; }
+.badge.admin { background: var(--accent-light); color: var(--accent); }
+.badge.driver { background: var(--accent2-light); color: var(--accent2); }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+  background: var(--accent); color: #fff; border: none; border-radius: 7px;
+  font-family: var(--sans); font-size: 0.85rem; font-weight: 600;
+  padding: 0.5rem 0.9rem; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s; white-space: nowrap; user-select: none;
+}
+.btn:hover { opacity: 0.9; }
+.btn:active { transform: scale(0.97); }
+.btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn.ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn.ghost:hover { background: var(--surface2); }
+.btn.success { background: var(--success); }
+.btn.warn { background: var(--warn); }
+.btn.danger { background: var(--danger); }
+.btn.sm { font-size: 0.78rem; padding: 0.35rem 0.7rem; }
+.btn.xs { font-size: 0.7rem; padding: 0.22rem 0.5rem; border-radius: 5px; }
+.btn:disabled { opacity: 0.32; cursor: not-allowed; transform: none; }
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field label { font-size: 0.75rem; font-weight: 500; color: var(--text2); }
+.field input, .field select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: var(--sans); font-size: 0.875rem;
+  padding: 0.5rem 0.7rem; outline: none; width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+
+/* ── SETUP SCREENS ── */
+#screen-apikey, #screen-mode {
+  align-items: center; justify-content: center; padding: 2rem; gap: 1.5rem; background: var(--bg);
+}
+.center-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 1.5rem; width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-md);
+}
+.card-title { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
+.hint { font-size: 0.72rem; color: var(--text3); line-height: 1.5; }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; max-width: 380px; }
+.mode-card {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 1.75rem 1rem; display: flex; flex-direction: column; align-items: center;
+  gap: 0.55rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; box-shadow: var(--shadow);
+}
+.mode-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+.mode-card svg { width: 38px; height: 38px; }
+.mode-card .mode-title { font-size: 1rem; font-weight: 600; }
+.mode-card .mode-sub { font-size: 0.72rem; color: var(--text2); text-align: center; }
+
+/* ══════════════════════════════════════════
+   ADMIN — MAIN LAYOUT
+   Strip(48px) | Image(40%) | Map(rest)
+══════════════════════════════════════════ */
+#admin-body {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── LEFT STRIP ── */
+#ctrl-strip {
+  width: var(--strip);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.4rem 0;
+  gap: 0.15rem;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+#ctrl-strip::-webkit-scrollbar { display: none; }
+.strip-btn {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.05rem;
+  color: var(--text2);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+  flex-shrink: 0;
+  user-select: none;
+}
+.strip-btn:hover { background: var(--surface2); color: var(--text); }
+
+/* DORMANT — default, nothing special */
+
+/* ARMED — listening for a click */
+.strip-btn.armed {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(26,86,219,0.18);
+  animation: pulse-armed 1.4s ease-in-out infinite;
+}
+@keyframes pulse-armed {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(26,86,219,0.18); }
+  50% { box-shadow: 0 0 0 4px rgba(26,86,219,0.28); }
+}
+
+/* SET — point placed */
+.strip-btn.set {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success);
+}
+.strip-btn.set:hover { background: #c6ead9; }
+
+/* SAVE button ready */
+.strip-btn.ready {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
+.strip-btn.ready:hover { opacity: 0.88; }
+.strip-btn:disabled { opacity: 0.28; cursor: not-allowed; animation: none; }
+.strip-divider { width: 28px; height: 1px; background: var(--border); margin: 0.2rem 0; flex-shrink: 0; }
+
+/* Rotate slider — vertical, hidden by default */
+#rotate-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0;
+  flex-shrink: 0;
+}
+#rotate-wrap.visible { display: flex; }
+input[type=range].vertical {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: none;
+  width: 4px;
+  height: 80px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range].vertical::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.rot-readout {
+  font-family: var(--mono); font-size: 0.55rem;
+  color: var(--text3); text-align: center; line-height: 1.2;
+}
+
+/* ── IMAGE PANEL ── */
+#img-panel {
+  flex: 0 0 40%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: #e8e5e0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Upload progress bar — sits at very top of image panel */
+#upload-bar-wrap {
+  height: 3px; flex-shrink: 0;
+  background: var(--border); display: none;
+}
+#upload-bar-wrap.visible { display: block; }
+#upload-bar-fill {
+  height: 100%; width: 0%;
+  background: var(--accent); transition: width 0.3s;
+}
+
+/* Image viewport fills the panel */
+#img-viewport {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  cursor: crosshair;
+}
+.img-empty-msg {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center; color: var(--text3);
+  font-size: 0.82rem; line-height: 1.8;
+  pointer-events: none;
+}
+#img-canvas-wrap {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  line-height: 0;
+  display: none;
+}
+#img-preview {
+  display: block;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Crosshair on image */
+#img-crosshair {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 20; display: none;
+}
+
+/* Anchor dots on image */
+.img-anchor-dot {
+  position: absolute;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2.5px solid #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 21;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff;
+  font-family: var(--mono);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+}
+.img-anchor-dot.a { background: var(--accent); }
+.img-anchor-dot.b { background: var(--warn); }
+
+/* Zoom buttons overlay */
+#zoom-btns {
+  position: absolute; bottom: 0.5rem; right: 0.5rem;
+  display: flex; flex-direction: column; gap: 2px; z-index: 15;
+}
+#zoom-btns button {
+  width: 26px; height: 26px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.12s;
+}
+#zoom-btns button:hover { background: var(--surface2); }
+
+/* ── MAP PANEL ── */
+#map-panel {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+#admin-gmap { width: 100%; height: 100%; }
+#preview-canvas {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 10; display: none;
+}
+.picking-banner {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: var(--accent); color: #fff;
+  font-size: 0.8rem; font-weight: 500;
+  padding: 0.5rem 1rem; text-align: center;
+  z-index: 100; display: none;
+}
+#map-panel.picking .picking-banner { display: block; }
+#map-panel.picking #admin-gmap { cursor: crosshair; }
+#map-crosshair {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events: none; z-index: 50; display: none;
+}
+#map-panel.picking #map-crosshair { display: block; }
+
+/* ── EXTRA DRAWER (···) ── */
+#extra-drawer {
+  position: absolute;
+  bottom: 0; left: var(--strip);
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0 10px 0 0;
+  padding: 0.75rem;
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: var(--shadow-md);
+}
+#extra-drawer.open { display: flex; }
+.drawer-title { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+.drawer-row { display: flex; gap: 0.4rem; align-items: center; }
+.drawer-field-label { font-size: 0.72rem; color: var(--text2); min-width: 60px; }
+
+/* ── PROPERTY DRAWER ── */
+#prop-drawer {
+  position: absolute;
+  top: 50px; left: 0;
+  width: calc(var(--strip) + 40%);
+  max-width: 380px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  z-index: 300;
+  display: none;
+  flex-direction: column;
+  max-height: calc(100dvh - 50px);
+  box-shadow: var(--shadow-md);
+}
+#prop-drawer.open { display: flex; }
+.drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2); flex-shrink: 0;
+}
+.drawer-header-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); }
+.drawer-body { padding: 0.65rem; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; }
+.prop-item {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 0.5rem 0.65rem; cursor: pointer; display: flex; align-items: center;
+  gap: 0.5rem; transition: border-color 0.15s, background 0.15s;
+}
+.prop-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.prop-item.active { border-color: var(--accent); background: var(--accent-light); }
+.prop-name { font-size: 0.85rem; font-weight: 600; }
+.prop-meta { font-size: 0.67rem; color: var(--text2); margin-top: 1px; }
+.prop-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+.prop-status-dot.ok { background: var(--success); }
+
+/* ── STATUS DOT ── */
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; display: inline-block; }
+.sdot.ok { background: var(--success); }
+.sdot.warn { background: var(--warn); }
+.sdot.err { background: var(--danger); }
+
+/* ══════════════════════════════════════════
+   DRIVER SCREEN
+══════════════════════════════════════════ */
+#driver-map-wrap { flex: 1 1 0; position: relative; overflow: hidden; min-height: 0; }
+#driver-gmap { width: 100%; height: 100%; }
+#overlay-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10; display: none;
+}
+#overlay-canvas.visible { display: block; }
+#driver-controls {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 0.75rem 1rem; display: flex; flex-direction: column;
+  gap: 0.6rem; box-shadow: 0 -2px 8px rgba(0,0,0,0.06); flex-shrink: 0;
+}
+.slider-row { display: flex; align-items: center; gap: 0.75rem; }
+.slider-label { font-size: 0.72rem; font-weight: 500; color: var(--text2); min-width: 52px; }
+input[type=range].driver-slider {
+  flex: 1; appearance: none; height: 4px;
+  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range].driver-slider::-webkit-slider-thumb {
+  appearance: none; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: var(--shadow);
+}
+.slider-val { font-size: 0.75rem; min-width: 36px; text-align: right; color: var(--text2); font-family: var(--mono); }
+#activate-btn { width: 100%; padding: 1rem; font-size: 1rem; border-radius: 10px; }
+#activate-btn.active { background: var(--warn); }
+#property-chip {
+  display: flex; align-items: center; gap: 0.45rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 0.28rem 0.8rem; font-size: 0.8rem; font-weight: 500; cursor: pointer; max-width: 200px;
+}
+#property-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#prop-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+#prop-dot.ok { background: var(--success); }
+#prop-select-panel {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  z-index: 200; display: none; width: calc(100% - 2rem); max-width: 360px;
+  max-height: 55dvh; overflow-y: auto; padding: 0.5rem;
+  flex-direction: column; gap: 0.35rem; box-shadow: var(--shadow-md);
+}
+#prop-select-panel.open { display: flex; }
+#wakelock-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+#wakelock-dot.on { background: var(--success); }
+
+/* Re-center button — floats over map bottom-right */
+#recenter-btn {
+  position: absolute; bottom: 1rem; right: 1rem;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 20; font-size: 1.1rem;
+  transition: background 0.15s;
+}
+#recenter-btn.visible { display: flex; }
+#recenter-btn:active { background: var(--surface2); transform: scale(0.94); }
+
+/* ── MODAL ── */
+#modal-backdrop {
+  position: fixed; inset: 0; background: rgba(26,26,24,0.5);
+  z-index: 1000; display: none; align-items: center; justify-content: center;
+  padding: 1rem; backdrop-filter: blur(2px);
+}
+#modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 1.5rem; width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; gap: 0.85rem;
+  max-height: 90dvh; overflow-y: auto; box-shadow: var(--shadow-md);
+}
+.modal-title { font-size: 1rem; font-weight: 600; }
+.modal-footer { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--text); border-radius: 20px; padding: 0.45rem 1rem;
+  font-size: 0.82rem; color: #fff; opacity: 0;
+  transition: opacity 0.2s, transform 0.2s; z-index: 9999;
+  white-space: nowrap; pointer-events: none; max-width: calc(100vw - 2rem); text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ API KEY ═══════════ -->
+<div id="screen-apikey" class="screen active">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+    <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
+    <div class="vtag">v0.7</div>
+  </div>
+  <div class="center-card">
+    <div class="card-title">Google Maps Setup</div>
+    <div class="field">
+      <label>Maps JavaScript API Key</label>
+      <input type="text" id="api-key-input" placeholder="AIzaSy…" autocomplete="off" spellcheck="false">
+    </div>
+    <p class="hint">Saved in this browser only. Never sent anywhere except Google.</p>
+    <button class="btn" onclick="saveApiKey()" style="width:100%;">Load Maps →</button>
+  </div>
+</div>
+
+<!-- ═══════════ MODE SELECT ═══════════ -->
+<div id="screen-mode" class="screen">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+    <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
+    <div class="vtag">v0.7</div>
+  </div>
+  <div class="mode-grid">
+    <div class="mode-card" onclick="enterMode('driver')">
+      <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="#1a56db" stroke-width="1.5"/><path d="M20 11 L27 24 L20 22 L13 24 Z" fill="#1a56db"/></svg>
+      <div class="mode-title">Driver</div>
+      <div class="mode-sub">Navigate a property</div>
+    </div>
+    <div class="mode-card" onclick="enterMode('admin')">
+      <svg viewBox="0 0 40 40" fill="none"><rect x="5" y="5" width="30" height="30" rx="5" stroke="#0a7c5c" stroke-width="1.5"/><path d="M13 20 L17 24 L27 14" stroke="#0a7c5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="mode-title">Admin</div>
+      <div class="mode-sub">Set up properties</div>
+    </div>
+  </div>
+  <button class="btn ghost sm" onclick="changeApiKey()" style="margin-top:0.5rem;">Change API Key</button>
+</div>
+
+<!-- ═══════════ ADMIN SCREEN ═══════════ -->
+<div id="admin-screen" class="screen">
+
+  <div class="topbar">
+    <div class="logo">map<em>lab</em></div>
+    <span class="badge admin">Admin</span>
+    <div class="vtag">v0.7</div>
+    <span class="sdot" id="sb-dot" style="margin-left:0.25rem;"></span>
+    <span id="sb-label" style="font-size:0.7rem;color:var(--text3);">connecting…</span>
+
+    <!-- Search -->
+    <div style="flex:1;display:flex;align-items:center;gap:0.4rem;margin:0 0.5rem;max-width:420px;">
+      <input type="text" id="map-search-input" placeholder="Search address or place…"
+        onkeydown="if(event.key==='Enter')searchMap()"
+        style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+               color:var(--text);font-family:var(--sans);font-size:0.8rem;
+               padding:0.35rem 0.65rem;outline:none;">
+      <button class="btn sm" onclick="searchMap()">Go</button>
+    </div>
+
+    <div class="topbar-right">
+      <button class="btn secondary sm" onclick="togglePropDrawer()" id="prop-drawer-btn">Properties ▾</button>
+      <button class="btn sm" onclick="openNewPropertyModal()">+ New</button>
+      <button class="btn ghost xs" onclick="goToMode()">← Exit</button>
+    </div>
+  </div>
+
+  <div id="admin-body">
+
+    <!-- ── LEFT STRIP (48px) ── -->
+    <div id="ctrl-strip">
+
+      <!-- Upload -->
+      <button class="strip-btn" onclick="document.getElementById('img-file-input').click()" title="Upload map image">
+        📷
+      </button>
+      <input type="file" id="img-file-input" accept="image/*" onchange="loadOverlayImage(event)" style="display:none;">
+
+      <!-- Upload status dot -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 0;">
+        <span class="sdot" id="upload-sdot" style="display:none;"></span>
+      </div>
+
+      <!-- Rotate toggle -->
+      <button class="strip-btn" id="rotate-btn" onclick="toggleRotate()" title="Rotate image" style="display:none;">↻</button>
+
+      <!-- Rotate slider (vertical, hidden until toggled) -->
+      <div id="rotate-wrap">
+        <input type="range" class="vertical" id="rotate-slider" min="0" max="359" value="0" step="1"
+               oninput="rotateImage(this.value)">
+        <div class="rot-readout" id="rotate-val">0°</div>
+        <button class="strip-btn" onclick="resetRotation()" title="Reset rotation" style="width:28px;height:22px;font-size:0.6rem;">↺</button>
+      </div>
+
+      <div class="strip-divider"></div>
+
+      <div class="strip-divider"></div>
+
+      <!-- Four independent point buttons: IA, MA, IB, MB -->
+      <!-- Each has three states: dormant / armed / set -->
+      <button class="strip-btn" id="btn-ia" onclick="togglePointBtn('ia')"
+              title="Image Point A — tap to arm, then click image">
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;">I</span>
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;color:var(--accent);">A</span>
+      </button>
+      <button class="strip-btn" id="btn-ma" onclick="togglePointBtn('ma')"
+              title="Map Point A — tap to arm, then click map">
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;">M</span>
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;color:var(--accent);">A</span>
+      </button>
+      <button class="strip-btn" id="btn-ib" onclick="togglePointBtn('ib')"
+              title="Image Point B — tap to arm, then click image">
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;">I</span>
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;color:var(--warn);">B</span>
+      </button>
+      <button class="strip-btn" id="btn-mb" onclick="togglePointBtn('mb')"
+              title="Map Point B — tap to arm, then click map">
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;">M</span>
+        <span style="font-size:0.62rem;font-weight:700;font-family:var(--mono);line-height:1;color:var(--warn);">B</span>
+      </button>
+
+      <div class="strip-divider"></div>
+
+      <!-- Preview -->
+      <button class="strip-btn" id="btn-preview" onclick="togglePreview()"
+              title="Preview overlay on map" disabled style="font-size:1rem;">👁</button>
+
+      <!-- Save -->
+      <button class="strip-btn" id="btn-save" onclick="saveOverlay()"
+              title="Save overlay" disabled style="font-size:1.05rem;">✓</button>
+
+      <div class="strip-divider"></div>
+
+      <!-- Pin mode -->
+      <button class="strip-btn" id="btn-pin" onclick="togglePinMode()"
+              title="Place building pin" style="font-size:1rem;">📍</button>
+
+      <!-- Extra drawer toggle — always at bottom, strip scrolls to reach it -->
+      <button class="strip-btn" onclick="toggleExtraDrawer()" title="More options"
+              style="font-size:0.9rem;letter-spacing:0.05em;">···</button>
+
+    </div>
+
+    <!-- ── IMAGE PANEL ── -->
+    <div id="img-panel">
+      <div id="upload-bar-wrap"><div id="upload-bar-fill"></div></div>
+
+      <div id="img-viewport">
+        <div class="img-empty-msg" id="img-empty-msg">Upload a property map image<br>using the 📷 button on the left</div>
+        <div id="img-canvas-wrap">
+          <img id="img-preview" alt="property map" draggable="false">
+        </div>
+        <div id="img-crosshair">
+          <svg width="26" height="26" viewBox="0 0 26 26">
+            <circle cx="13" cy="13" r="4.5" fill="none" stroke="#1a56db" stroke-width="2"/>
+            <line x1="13" y1="1" x2="13" y2="7" stroke="#1a56db" stroke-width="2"/>
+            <line x1="13" y1="19" x2="13" y2="25" stroke="#1a56db" stroke-width="2"/>
+            <line x1="1" y1="13" x2="7" y2="13" stroke="#1a56db" stroke-width="2"/>
+            <line x1="19" y1="13" x2="25" y2="13" stroke="#1a56db" stroke-width="2"/>
+          </svg>
+        </div>
+        <div id="zoom-btns">
+          <button onclick="zoomImg(1.3)" title="Zoom in">+</button>
+          <button onclick="zoomImg(0.77)" title="Zoom out">−</button>
+          <button onclick="resetImgView()" title="Fit to panel" style="font-size:0.65rem;">fit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MAP PANEL ── -->
+    <div id="map-panel">
+      <div id="admin-gmap"></div>
+      <canvas id="preview-canvas"></canvas>
+      <div class="picking-banner" id="picking-banner">Click the map · Escape to cancel</div>
+      <div id="map-crosshair">
+        <svg width="26" height="26" viewBox="0 0 26 26">
+          <circle cx="13" cy="13" r="4.5" fill="none" stroke="#1a56db" stroke-width="2"/>
+          <line x1="13" y1="1" x2="13" y2="7" stroke="#1a56db" stroke-width="2"/>
+          <line x1="13" y1="19" x2="13" y2="25" stroke="#1a56db" stroke-width="2"/>
+          <line x1="1" y1="13" x2="7" y2="13" stroke="#1a56db" stroke-width="2"/>
+          <line x1="19" y1="13" x2="25" y2="13" stroke="#1a56db" stroke-width="2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTY DRAWER -->
+  <div id="prop-drawer">
+    <div class="drawer-header">
+      <span class="drawer-header-title">Properties</span>
+      <button class="btn ghost xs" onclick="togglePropDrawer()">✕</button>
+    </div>
+    <div class="drawer-body" id="property-list">
+      <p style="font-size:0.8rem;color:var(--text3);">Loading…</p>
+    </div>
+  </div>
+
+  <!-- EXTRA DRAWER (···) -->
+  <div id="extra-drawer">
+    <div class="drawer-title">More options</div>
+
+    <div class="drawer-row">
+      <span class="drawer-field-label" style="font-size:0.72rem;color:var(--text2);">Boundary radius</span>
+      <input type="number" id="boundary-radius" value="200" min="50" max="2000"
+             style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:5px;
+                    font-size:0.78rem;padding:0.28rem 0.4rem;outline:none;color:var(--text);">
+      <span style="font-size:0.7rem;color:var(--text3);">m</span>
+      <button class="btn secondary xs" onclick="startPickingCenter()">Set center</button>
+      <button class="btn success xs" onclick="saveBoundary()">Save</button>
+    </div>
+
+    <div class="drawer-row">
+      <button class="btn secondary xs" onclick="togglePreview()" id="preview-btn" disabled>Preview overlay</button>
+      <button class="btn ghost xs" onclick="resetAnchors()">Reset points</button>
+    </div>
+
+    <div style="border:1px dashed var(--border);border-radius:6px;padding:0.4rem 0.5rem;opacity:0.55;display:flex;gap:0.4rem;align-items:center;">
+      <span style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);background:var(--surface2);border-radius:3px;padding:1px 4px;flex-shrink:0;">Soon</span>
+      <span style="font-size:0.7rem;color:var(--text2);line-height:1.3;">AI reads unit numbers from image → auto-populates building database</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ DRIVER SCREEN ═══════════ -->
+<div id="driver-screen" class="screen">
+  <div class="topbar">
+    <div class="logo">map<em>lab</em></div>
+    <div class="vtag">v0.7</div>
+    <div id="property-chip" onclick="togglePropertySelect()" style="margin-left:0.4rem;">
+      <div id="prop-dot"></div>
+      <span id="prop-chip-label">Select property</span>
+      <span style="color:var(--text3);font-size:0.7rem;">▾</span>
+    </div>
+    <div class="topbar-right">
+      <div id="wakelock-dot" title="Screen keep-awake"></div>
+      <span class="badge driver">Driver</span>
+      <button class="btn ghost xs" onclick="goToMode()">← Exit</button>
+    </div>
+  </div>
+  <div id="driver-map-wrap">
+    <div id="driver-gmap"></div>
+    <canvas id="overlay-canvas"></canvas>
+    <div id="prop-select-panel"></div>
+    <button id="recenter-btn" onclick="recenterOnDriver()" title="Re-center on my location">◎</button>
+  </div>
+  <div id="driver-controls">
+    <div class="slider-row" id="opacity-row" style="display:none;">
+      <span class="slider-label">Overlay</span>
+      <input type="range" class="driver-slider" id="opacity-slider" min="0" max="100" value="50"
+             oninput="updateOpacity(this.value)">
+      <span class="slider-val" id="opacity-val">50%</span>
+    </div>
+    <button id="activate-btn" class="btn" onclick="toggleOverlay()" disabled>Show Property Overlay</button>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL / TOAST ═══════════ -->
+<div id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+//  SUPABASE
+// ════════════════════════════════════════
+const SUPA_URL = 'https://nlbnhkrxxqptforgaqvi.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYm5oa3J4eHFwdGZvcmdhcXZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMzA0MzYsImV4cCI6MjA5NDkwNjQzNn0.JG-rdRlOuIbVYIBSyOudGGC5aZJR9UzJhJL5eYtzu-M';
+const BUCKET = 'property-maps';
+let sb;
+function initSupabase() {
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb.from('properties').select('id').limit(1).then(({ error }) => {
+    const dot = document.getElementById('sb-dot');
+    const lbl = document.getElementById('sb-label');
+    if (error) { dot.className = 'sdot err'; lbl.textContent = 'DB error'; }
+    else { dot.className = 'sdot ok'; lbl.textContent = 'Connected'; }
+  });
+}
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let apiKey;
+let driverMap, adminMap, geocoder;
+let overlayActive = false, wakeLock = null;
+let currentPropId = null, currentProp = null;
+
+// Image pan/zoom
+let imgScale = 1, imgPanX = 0, imgPanY = 0;
+let isDragging = false, dragSX = 0, dragSY = 0, panSX = 0, panSY = 0;
+let imgNaturalW = 0, imgNaturalH = 0;
+let imageRotationDeg = 0;
+
+// Anchors
+let anchors = { a: { img: null, map: null }, b: { img: null, map: null } };
+let anchorMarkers = [];
+let overlayImageUrl = null;
+
+// Picking
+let pickingCenter = false, pinModeActive = false;
+let pendingPinCoord = null, pendingCenter = null;
+let boundaryCircle = null, pinTempMarker = null, pinMarkers = {};
+
+// Preview
+let previewActive = false, previewImage = null;
+
+// Driver
+let driverOverlayImage = null, overlayTransform = null, overlayOpacity = 0.5;
+let driverLastPos = null; // last known GPS position
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+async function init() {
+  initSupabase();
+  apiKey = localStorage.getItem('ml_api_key');
+  // Check for ?property= URL parameter — pre-selects driver mode and property
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlPropertyId = urlParams.get('property');
+  if (urlPropertyId) {
+    // Store for use after maps load
+    window._urlPropertyId = urlPropertyId;
+  }
+  showScreen(apiKey ? 'screen-mode' : 'screen-apikey');
+  // If we have both an API key and a property param, go straight to driver mode
+  if (apiKey && urlPropertyId) {
+    await enterMode('driver');
+  }
+}
+function saveApiKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k) { toast('Enter your API key'); return; }
+  localStorage.setItem('ml_api_key', k);
+  apiKey = k; showScreen('screen-mode');
+}
+function changeApiKey() { localStorage.removeItem('ml_api_key'); showScreen('screen-apikey'); }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goToMode() {
+  if (overlayActive) toggleOverlay();
+  releaseWakeLock();
+  driverMap = null; adminMap = null; currentPropId = null; currentProp = null; overlayImageUrl = null;
+  driverLastPos = null;
+  showScreen('screen-mode');
+}
+
+// ════════════════════════════════════════
+//  MAPS LOADER
+// ════════════════════════════════════════
+let mapsLoaded = false;
+function loadMapsScript() {
+  if (mapsLoaded || window.google) { mapsLoaded = true; return Promise.resolve(); }
+  return new Promise((res, rej) => {
+    window._mlMapsReady = () => { mapsLoaded = true; res(); };
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=_mlMapsReady`;
+    s.async = true;
+    s.onerror = () => { toast('Maps failed to load — check API key'); rej(); };
+    document.head.appendChild(s);
+  });
+}
+async function enterMode(mode) {
+  if (mode === 'driver') {
+    showScreen('driver-screen');
+    await loadMapsScript();
+    initDriverMap();
+    await refreshDriverPropertyList();
+    // Auto-select property if URL parameter was set
+    if (window._urlPropertyId) {
+      await selectDriverProperty(window._urlPropertyId);
+      window._urlPropertyId = null; // consume it
+    }
+  } else {
+    showScreen('admin-screen');
+    await loadMapsScript();
+    initAdminMap();
+    await refreshPropertyList();
+  }
+}
+
+// ════════════════════════════════════════
+//  IMAGE PAN / ZOOM
+// ════════════════════════════════════════
+function applyImgTransform() {
+  document.getElementById('img-canvas-wrap').style.transform =
+    `translate(${imgPanX}px,${imgPanY}px) scale(${imgScale})`;
+  if (anchors.a.img) placeImgDot('a', anchors.a.img.x, anchors.a.img.y);
+  if (anchors.b.img) placeImgDot('b', anchors.b.img.x, anchors.b.img.y);
+}
+function zoomImg(f) {
+  imgScale = Math.min(10, Math.max(0.15, imgScale * f));
+  applyImgTransform();
+}
+function resetImgView() {
+  // Fit image to viewport
+  const vp = document.getElementById('img-viewport');
+  const vpW = vp.offsetWidth, vpH = vp.offsetHeight;
+  if (!imgNaturalW) { imgScale = 1; imgPanX = 0; imgPanY = 0; applyImgTransform(); return; }
+  const scaleW = vpW / imgNaturalW, scaleH = vpH / imgNaturalH;
+  imgScale = Math.min(scaleW, scaleH, 1);
+  imgPanX = (vpW - imgNaturalW * imgScale) / 2;
+  imgPanY = (vpH - imgNaturalH * imgScale) / 2;
+  applyImgTransform();
+}
+
+function setupImgInteraction() {
+  const vp = document.getElementById('img-viewport');
+
+  // Wheel zoom
+  vp.addEventListener('wheel', e => {
+    if (!imgNaturalW) return;
+    e.preventDefault();
+    const f = e.deltaY < 0 ? 1.12 : 0.89;
+    // Zoom toward cursor
+    const rect = vp.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const prevScale = imgScale;
+    imgScale = Math.min(10, Math.max(0.15, imgScale * f));
+    imgPanX = mx - (mx - imgPanX) * (imgScale / prevScale);
+    imgPanY = my - (my - imgPanY) * (imgScale / prevScale);
+    applyImgTransform();
+  }, { passive: false });
+
+  // Drag to pan (always — click vs drag disambiguated by movement threshold)
+  vp.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    isDragging = false;
+    dragSX = e.clientX; dragSY = e.clientY;
+    panSX = imgPanX; panSY = imgPanY;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragSX && dragSX !== 0) return;
+    const dx = e.clientX - dragSX, dy = e.clientY - dragSY;
+    if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) isDragging = true;
+    if (isDragging) {
+      imgPanX = panSX + dx; imgPanY = panSY + dy;
+      applyImgTransform();
+      vp.style.cursor = 'grabbing';
+    }
+  });
+  window.addEventListener('mouseup', e => {
+    const wasDragging = isDragging;
+    isDragging = false;
+    dragSX = null;
+    vp.style.cursor = 'crosshair';
+    // If it was a click (no drag), handle anchor placement
+    if (!wasDragging && e.target.closest('#img-viewport') && imgNaturalW) {
+      handleImageClick(e);
+    }
+  });
+
+  // Crosshair follow
+  vp.addEventListener('mousemove', e => {
+    if (!imgNaturalW) return;
+    const rect = vp.getBoundingClientRect();
+    const xh = document.getElementById('img-crosshair');
+    xh.style.display = 'block';
+    xh.style.left = (e.clientX - rect.left) + 'px';
+    xh.style.top = (e.clientY - rect.top) + 'px';
+  });
+  vp.addEventListener('mouseleave', () => {
+    document.getElementById('img-crosshair').style.display = 'none';
+  });
+}
+
+// ════════════════════════════════════════
+//  IMAGE LOAD & UPLOAD
+// ════════════════════════════════════════
+function loadOverlayImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!currentPropId) { toast('Select or create a property first'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = document.getElementById('img-preview');
+    img.onload = () => {
+      imgNaturalW = img.naturalWidth; imgNaturalH = img.naturalHeight;
+      document.getElementById('img-canvas-wrap').style.display = 'inline-block';
+      document.getElementById('img-empty-msg').style.display = 'none';
+      document.getElementById('rotate-btn').style.display = 'flex';
+      resetImgView();
+      resetAnchors();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  uploadImageToSupabase(file);
+}
+
+async function uploadImageToSupabase(file) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const filePath = currentPropId + '/map-' + Date.now() + '.' + ext;
+  const barWrap = document.getElementById('upload-bar-wrap');
+  const barFill = document.getElementById('upload-bar-fill');
+  const sdot = document.getElementById('upload-sdot');
+  barWrap.classList.add('visible'); barFill.style.width = '15%';
+  sdot.style.display = 'inline-block'; sdot.className = 'sdot warn';
+
+  const { error: uploadError } = await sb.storage.from(BUCKET).upload(filePath, file, { upsert: true });
+  if (uploadError) {
+    barWrap.classList.remove('visible');
+    sdot.className = 'sdot err';
+    toast('Upload failed — check Supabase Storage policy on property-maps bucket');
+    console.error(uploadError); overlayImageUrl = null; return;
+  }
+  barFill.style.width = '100%';
+  setTimeout(() => barWrap.classList.remove('visible'), 600);
+
+  const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(filePath);
+  overlayImageUrl = urlData.publicUrl;
+
+  const { error: updateError } = await sb.from('properties')
+    .update({ map_asset_url: overlayImageUrl, last_updated: new Date().toISOString() })
+    .eq('id', currentPropId);
+  if (updateError) { sdot.className = 'sdot warn'; console.error(updateError); }
+  else { sdot.className = 'sdot ok'; await refreshPropertyList(); }
+  checkSaveReady();
+}
+
+// ════════════════════════════════════════
+//  IMAGE ROTATION
+// ════════════════════════════════════════
+function toggleRotate() {
+  const wrap = document.getElementById('rotate-wrap');
+  const btn = document.getElementById('rotate-btn');
+  wrap.classList.toggle('visible');
+  btn.classList.toggle('active', wrap.classList.contains('visible'));
+}
+function rotateImage(val) {
+  imageRotationDeg = parseInt(val);
+  document.getElementById('img-preview').style.transform = `rotate(${val}deg)`;
+  document.getElementById('rotate-val').textContent = val + '°';
+  if (anchors.a.img) placeImgDot('a', anchors.a.img.x, anchors.a.img.y);
+  if (anchors.b.img) placeImgDot('b', anchors.b.img.x, anchors.b.img.y);
+}
+function resetRotation() {
+  imageRotationDeg = 0;
+  document.getElementById('rotate-slider').value = 0;
+  rotateImage(0);
+}
+
+// ════════════════════════════════════════
+//  ANCHOR STATE MACHINE
+//  Each point: dormant → armed → set
+//  armed + click → set
+//  armed + tap button → dormant (cancel)
+//  set + tap button → armed (redo)
+// ════════════════════════════════════════
+
+// Which point button is currently armed: 'ia' | 'ma' | 'ib' | 'mb' | null
+let armedPoint = null;
+
+function togglePointBtn(point) {
+  // If another point is armed, disarm it first
+  if (armedPoint && armedPoint !== point) {
+    setPointState(armedPoint, getPointData(armedPoint) ? 'set' : 'dormant');
+  }
+  const current = getPointBtnState(point);
+  if (current === 'dormant') {
+    // Dormant → Armed
+    armPoint(point);
+  } else if (current === 'armed') {
+    // Armed → Dormant (cancel)
+    setPointState(point, 'dormant');
+    armedPoint = null;
+    if (point === 'ma' || point === 'mb') {
+      document.getElementById('map-panel').classList.remove('picking');
+    }
+  } else if (current === 'set') {
+    // Set → Armed (redo)
+    armPoint(point);
+  }
+}
+
+function armPoint(point) {
+  armedPoint = point;
+  setPointState(point, 'armed');
+  // If it's a map point, activate map picking mode
+  if (point === 'ma' || point === 'mb') {
+    document.getElementById('map-panel').classList.add('picking');
+    const which = point === 'ma' ? 'A' : 'B';
+    document.getElementById('picking-banner').textContent =
+      'Click the map to place Point ' + which + ' · tap button again to cancel';
+  } else {
+    // Image point — just show instruction
+    const which = point === 'ia' ? 'A' : 'B';
+    toast('IA armed — click the image to place Point ' + which);
+  }
+}
+
+function getPointBtnState(point) {
+  const btn = document.getElementById('btn-' + point);
+  if (btn.classList.contains('armed')) return 'armed';
+  if (btn.classList.contains('set')) return 'set';
+  return 'dormant';
+}
+
+function getPointData(point) {
+  if (point === 'ia') return anchors.a.img;
+  if (point === 'ma') return anchors.a.map;
+  if (point === 'ib') return anchors.b.img;
+  if (point === 'mb') return anchors.b.map;
+  return null;
+}
+
+function setPointState(point, state) {
+  const btn = document.getElementById('btn-' + point);
+  btn.classList.remove('armed', 'set');
+  if (state === 'armed') btn.classList.add('armed');
+  else if (state === 'set') btn.classList.add('set');
+}
+
+// ════════════════════════════════════════
+//  ANCHOR — IMAGE SIDE
+// ════════════════════════════════════════
+function handleImageClick(e) {
+  if (!imgNaturalW) return;
+  if (pinModeActive) return;
+  // Only act if an image point is armed
+  if (armedPoint !== 'ia' && armedPoint !== 'ib') return;
+
+  const img = document.getElementById('img-preview');
+  const imgRect = img.getBoundingClientRect();
+  const cx = imgRect.left + imgRect.width / 2;
+  const cy = imgRect.top + imgRect.height / 2;
+  const dx = e.clientX - cx, dy = e.clientY - cy;
+  // Un-rotate click to get unrotated normalized image coordinates
+  const rad = -imageRotationDeg * Math.PI / 180;
+  const ux = dx * Math.cos(rad) - dy * Math.sin(rad);
+  const uy = dx * Math.sin(rad) + dy * Math.cos(rad);
+  // Normalize to 0-1 based on the NATURAL image dimensions projected to display size
+  // Use displayed size (affected by imgScale) to get the right fraction
+  const nx = (ux / (imgNaturalW * imgScale)) + 0.5;
+  const ny = (uy / (imgNaturalH * imgScale)) + 0.5;
+  if (nx < 0 || nx > 1 || ny < 0 || ny > 1) {
+    toast('Click missed the image — try again'); return;
+  }
+
+  if (armedPoint === 'ia') {
+    anchors.a.img = { x: nx, y: ny };
+    setPointState('ia', 'set');
+    armedPoint = null;
+    placeImgDot('a', nx, ny);
+    toast('Image Point A set ✓ — tap MA to place on map');
+  } else if (armedPoint === 'ib') {
+    anchors.b.img = { x: nx, y: ny };
+    setPointState('ib', 'set');
+    armedPoint = null;
+    placeImgDot('b', nx, ny);
+    toast('Image Point B set ✓ — tap MB to place on map');
+  }
+  checkSaveReady();
+}
+
+function placeImgDot(which, nx, ny) {
+  const img = document.getElementById('img-preview');
+  const vp = document.getElementById('img-viewport');
+  const vpRect = vp.getBoundingClientRect();
+  const imgRect = img.getBoundingClientRect();
+  const rad = imageRotationDeg * Math.PI / 180;
+  const ux = (nx - 0.5) * imgRect.width;
+  const uy = (ny - 0.5) * imgRect.height;
+  const rx = ux * Math.cos(rad) - uy * Math.sin(rad);
+  const ry = ux * Math.sin(rad) + uy * Math.cos(rad);
+  const ax = (imgRect.left - vpRect.left) + imgRect.width / 2 + rx;
+  const ay = (imgRect.top - vpRect.top) + imgRect.height / 2 + ry;
+  let dot = vp.querySelector('.img-anchor-dot.' + which);
+  if (!dot) {
+    dot = document.createElement('div');
+    dot.className = 'img-anchor-dot ' + which;
+    dot.textContent = which.toUpperCase();
+    vp.appendChild(dot);
+  }
+  dot.style.left = ax + 'px';
+  dot.style.top = ay + 'px';
+}
+
+// ════════════════════════════════════════
+//  ANCHOR — MAP SIDE
+// ════════════════════════════════════════
+// Map clicks are handled by handleAdminMapClick which checks armedPoint
+
+function placeMapAnchor(lat, lng) {
+  // Called when map is clicked and a map point is armed
+  const which = armedPoint === 'ma' ? 'a' : 'b';
+  const pointKey = armedPoint; // 'ma' or 'mb'
+  anchors[which].map = { lat, lng };
+
+  // Place/replace marker on map
+  const existing = anchorMarkers.find(m => m._which === which);
+  if (existing) existing.setMap(null);
+  const color = which === 'a' ? '#1a56db' : '#d97706';
+  const marker = new google.maps.Marker({
+    position: { lat, lng }, map: adminMap,
+    label: { text: which.toUpperCase(), color: '#fff', fontFamily: 'IBM Plex Mono', fontSize: '12px', fontWeight: '700' },
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 13, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2.5 }
+  });
+  marker._which = which;
+  anchorMarkers = anchorMarkers.filter(m => m._which !== which);
+  anchorMarkers.push(marker);
+
+  setPointState(pointKey, 'set');
+  armedPoint = null;
+  document.getElementById('map-panel').classList.remove('picking');
+  toast('Map Point ' + which.toUpperCase() + ' set ✓');
+  checkSaveReady();
+}
+
+function resetAnchors() {
+  anchors = { a: { img: null, map: null }, b: { img: null, map: null } };
+  armedPoint = null;
+  anchorMarkers.forEach(m => m.setMap && m.setMap(null));
+  anchorMarkers = [];
+  document.querySelectorAll('.img-anchor-dot').forEach(d => d.remove());
+  ['ia','ma','ib','mb'].forEach(p => setPointState(p, 'dormant'));
+  document.getElementById('btn-save').disabled = true;
+  document.getElementById('btn-save').classList.remove('ready');
+  const pb = document.getElementById('btn-preview');
+  if (pb) pb.disabled = true;
+  if (previewActive) togglePreview();
+  document.getElementById('map-panel').classList.remove('picking');
+}
+
+function checkSaveReady() {
+  const ready = !!(overlayImageUrl && anchors.a.img && anchors.b.img && anchors.a.map && anchors.b.map);
+  document.getElementById('btn-save').disabled = !ready;
+  document.getElementById('btn-save').classList.toggle('ready', ready);
+  const pb = document.getElementById('btn-preview');
+  if (pb) pb.disabled = !ready;
+}
+
+// ════════════════════════════════════════
+//  PREVIEW
+// ════════════════════════════════════════
+function togglePreview() {
+  previewActive = !previewActive;
+  const btn = document.getElementById('btn-preview');
+  const canvas = document.getElementById('preview-canvas');
+  if (previewActive) {
+    if (btn) { btn.textContent = 'Hide preview'; btn.classList.add('warn'); }
+    canvas.style.display = 'block';
+    previewImage = new Image();
+    previewImage.crossOrigin = 'anonymous';
+    previewImage.onload = drawPreview;
+    previewImage.src = overlayImageUrl;
+    adminMap.addListener('bounds_changed', drawPreview);
+    adminMap.addListener('zoom_changed', drawPreview);
+    toast('Preview active on map');
+  } else {
+    if (btn) { btn.textContent = 'Preview overlay'; btn.classList.remove('warn'); }
+    canvas.style.display = 'none';
+    previewImage = null;
+    google.maps.event.clearListeners(adminMap, 'bounds_changed');
+    google.maps.event.clearListeners(adminMap, 'zoom_changed');
+    adminMap.addListener('click', handleAdminMapClick);
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function drawPreview() {
+  if (!previewActive || !previewImage || !adminMap) return;
+  const canvas = document.getElementById('preview-canvas');
+  const mapDiv = document.getElementById('admin-gmap');
+  canvas.width = mapDiv.offsetWidth; canvas.height = mapDiv.offsetHeight;
+  renderOverlayToCanvas(canvas, previewImage, adminMap, anchors, 0.55);
+}
+
+// Shared overlay math
+function renderOverlayToCanvas(canvas, img, map, anch, opacity) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const t = { aImg: anch.a.img, bImg: anch.b.img, aMap: anch.a.map, bMap: anch.b.map };
+  if (!t.aImg || !t.bImg || !t.aMap || !t.bMap) return;
+  const proj = map.getProjection(); if (!proj) return;
+  const bounds = map.getBounds(); if (!bounds) return;
+  const scale = Math.pow(2, map.getZoom());
+  const nw = proj.fromLatLngToPoint(new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getSouthWest().lng()));
+  function ll2px(lat, lng) {
+    const w = proj.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
+    return { x: (w.x - nw.x) * scale, y: (w.y - nw.y) * scale };
+  }
+  const pA = ll2px(t.aMap.lat, t.aMap.lng), pB = ll2px(t.bMap.lat, t.bMap.lng);
+  const iW = img.naturalWidth, iH = img.naturalHeight;
+  const iA = { x: t.aImg.x * iW, y: t.aImg.y * iH };
+  const iB = { x: t.bImg.x * iW, y: t.bImg.y * iH };
+  const dxi = iB.x - iA.x, dyi = iB.y - iA.y;
+  const dxm = pB.x - pA.x, dym = pB.y - pA.y;
+  const di = Math.sqrt(dxi*dxi + dyi*dyi); if (di < 1) return;
+  const sc = Math.sqrt(dxm*dxm + dym*dym) / di;
+  const rot = Math.atan2(dym, dxm) - Math.atan2(dyi, dxi);
+  const cr = Math.cos(rot), sr = Math.sin(rot);
+  const tx = pA.x - sc * (iA.x * cr - iA.y * sr);
+  const ty = pA.y - sc * (iA.x * sr + iA.y * cr);
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.setTransform(sc * cr, sc * sr, -sc * sr, sc * cr, tx, ty);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+}
+
+// ════════════════════════════════════════
+//  SAVE
+// ════════════════════════════════════════
+async function saveOverlay() {
+  if (!currentPropId) { toast('No property selected'); return; }
+  if (!overlayImageUrl) { toast('Image still uploading — wait a moment'); return; }
+  if (!anchors.a.img || !anchors.b.img) { toast('Click Point A and Point B on the image first'); return; }
+  if (!anchors.a.map || !anchors.b.map) { toast('Place Point A and Point B on the map first'); return; }
+  const { error } = await sb.from('properties').update({
+    map_asset_url: overlayImageUrl,
+    anchor_point_1_img_x: anchors.a.img.x,
+    anchor_point_1_img_y: anchors.a.img.y,
+    anchor_point_2_img_x: anchors.b.img.x,
+    anchor_point_2_img_y: anchors.b.img.y,
+    anchor_point_1_lat: anchors.a.map.lat,
+    anchor_point_1_lng: anchors.a.map.lng,
+    anchor_point_2_lat: anchors.b.map.lat,
+    anchor_point_2_lng: anchors.b.map.lng,
+    last_updated: new Date().toISOString()
+  }).eq('id', currentPropId);
+  if (error) { toast('Save failed — check connection'); console.error(error); return; }
+  await refreshPropertyList();
+  if (previewActive) togglePreview();
+  toast('Overlay saved ✓');
+}
+
+// ════════════════════════════════════════
+//  ADMIN MAP
+// ════════════════════════════════════════
+function initAdminMap() {
+  adminMap = new google.maps.Map(document.getElementById('admin-gmap'), {
+    zoom: 17, center: { lat: 33.4484, lng: -112.074 },
+    mapTypeId: 'hybrid', gestureHandling: 'greedy',
+  });
+  geocoder = new google.maps.Geocoder();
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => adminMap.setCenter({ lat: p.coords.latitude, lng: p.coords.longitude }));
+  }
+  adminMap.addListener('click', handleAdminMapClick);
+}
+
+function searchMap() {
+  const q = document.getElementById('map-search-input').value.trim();
+  if (!q) return;
+  geocoder.geocode({ address: q }, (results, status) => {
+    if (status === 'OK' && results[0]) {
+      adminMap.setCenter(results[0].geometry.location);
+      adminMap.setZoom(18);
+    } else { toast('Location not found — try a more specific address'); }
+  });
+}
+
+function handleAdminMapClick(e) {
+  const lat = e.latLng.lat(), lng = e.latLng.lng();
+
+  // Map point armed via state machine
+  if (armedPoint === 'ma' || armedPoint === 'mb') {
+    placeMapAnchor(lat, lng);
+    return;
+  }
+  if (pickingCenter) {
+    pendingCenter = { lat, lng };
+    pickingCenter = false;
+    document.getElementById('map-panel').classList.remove('picking');
+    drawBoundaryPreview();
+    toast('Center set');
+    return;
+  }
+  if (pinModeActive) {
+    pendingPinCoord = { lat, lng };
+    if (pinTempMarker) pinTempMarker.setMap(null);
+    pinTempMarker = new google.maps.Marker({
+      position: { lat, lng }, map: adminMap,
+      label: { text: '?', color: '#fff', fontFamily: 'IBM Plex Mono', fontSize: '12px' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#d97706', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+    });
+    toast('Pin placed — enter label in the modal and save');
+    showPinModal();
+  }
+}
+
+// ════════════════════════════════════════
+//  PROPERTY MANAGEMENT
+// ════════════════════════════════════════
+let propDrawerOpen = false;
+function togglePropDrawer() {
+  propDrawerOpen = !propDrawerOpen;
+  document.getElementById('prop-drawer').classList.toggle('open', propDrawerOpen);
+  document.getElementById('prop-drawer-btn').textContent = propDrawerOpen ? 'Properties ▴' : 'Properties ▾';
+}
+
+async function refreshPropertyList() {
+  const { data, error } = await sb.from('properties').select('id, name, map_asset_url, building_count').order('name');
+  const list = document.getElementById('property-list');
+  list.innerHTML = '';
+  if (error) { list.innerHTML = '<p style="font-size:0.8rem;color:var(--danger);">Could not load.</p>'; return; }
+  if (!data?.length) { list.innerHTML = '<p style="font-size:0.8rem;color:var(--text3);">No properties yet.</p>'; return; }
+  data.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'prop-item' + (p.id === currentPropId ? ' active' : '');
+    d.innerHTML = `<div class="prop-status-dot ${p.map_asset_url ? 'ok' : ''}"></div>
+      <div style="flex:1;"><div class="prop-name">${p.name}</div>
+      <div class="prop-meta">${p.map_asset_url ? 'overlay ✓' : 'no overlay'} · ${p.building_count ?? 0} bldgs</div></div>
+      <button class="btn ghost xs" onclick="event.stopPropagation();deleteProperty('${p.id}')">✕</button>`;
+    d.onclick = () => { selectAdminProperty(p.id); togglePropDrawer(); };
+    list.appendChild(d);
+  });
+}
+
+async function selectAdminProperty(id) {
+  const { data, error } = await sb.from('properties').select('*').eq('id', id).single();
+  if (error || !data) { toast('Could not load property'); return; }
+  currentPropId = id; currentProp = data;
+  await refreshPropertyList();
+  if (data.centroid_lat && data.centroid_lng) {
+    adminMap.setCenter({ lat: data.centroid_lat, lng: data.centroid_lng });
+    adminMap.setZoom(18);
+  } else if (data.anchor_point_1_lat) {
+    adminMap.setCenter({ lat: data.anchor_point_1_lat, lng: data.anchor_point_1_lng });
+    adminMap.setZoom(18);
+  }
+  // Restore image
+  if (data.map_asset_url) {
+    overlayImageUrl = data.map_asset_url;
+    const img = document.getElementById('img-preview');
+    img.onload = () => {
+      imgNaturalW = img.naturalWidth; imgNaturalH = img.naturalHeight;
+      document.getElementById('img-canvas-wrap').style.display = 'inline-block';
+      document.getElementById('img-empty-msg').style.display = 'none';
+      document.getElementById('rotate-btn').style.display = 'flex';
+      resetImgView();
+    };
+    img.src = data.map_asset_url;
+    document.getElementById('upload-sdot').style.display = 'inline-block';
+    document.getElementById('upload-sdot').className = 'sdot ok';
+  }
+  // Restore anchors
+  resetAnchors();
+  if (data.anchor_point_1_img_x != null) anchors.a.img = { x: data.anchor_point_1_img_x, y: data.anchor_point_1_img_y };
+  if (data.anchor_point_2_img_x != null) anchors.b.img = { x: data.anchor_point_2_img_x, y: data.anchor_point_2_img_y };
+  if (data.anchor_point_1_lat != null) {
+    anchors.a.map = { lat: data.anchor_point_1_lat, lng: data.anchor_point_1_lng };
+    // Restore map marker
+    setMapAnchorMarkerOnly('a', data.anchor_point_1_lat, data.anchor_point_1_lng);
+  }
+  if (data.anchor_point_2_lat != null) {
+    anchors.b.map = { lat: data.anchor_point_2_lat, lng: data.anchor_point_2_lng };
+    setMapAnchorMarkerOnly('b', data.anchor_point_2_lat, data.anchor_point_2_lng);
+  }
+  // Restore button states from loaded anchor data
+  if (anchors.a.img) setPointState('ia', 'set');
+  if (anchors.a.map) setPointState('ma', 'set');
+  if (anchors.b.img) setPointState('ib', 'set');
+  if (anchors.b.map) setPointState('mb', 'set');
+  checkSaveReady();
+  if (data.centroid_lat) {
+    pendingCenter = { lat: data.centroid_lat, lng: data.centroid_lng };
+    drawBoundaryPreview();
+  }
+  await refreshPinMarkers();
+  toast('Editing: ' + data.name);
+}
+
+function setMapAnchorMarkerOnly(which, lat, lng) {
+  const color = which === 'a' ? '#1a56db' : '#d97706';
+  const marker = new google.maps.Marker({
+    position: { lat, lng }, map: adminMap,
+    label: { text: which.toUpperCase(), color: '#fff', fontFamily: 'IBM Plex Mono', fontSize: '12px', fontWeight: '700' },
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 13, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2.5 }
+  });
+  marker._which = which;
+  anchorMarkers = anchorMarkers.filter(m => m._which !== which);
+  anchorMarkers.push(marker);
+}
+
+function openNewPropertyModal() {
+  showModal(`<div class="modal-title">New Property</div>
+    <div class="field"><label>Property name</label>
+      <input type="text" id="new-prop-name" placeholder="Desert Club Apartments"></div>
+    <div class="field"><label>Address (optional)</label>
+      <input type="text" id="new-prop-addr" placeholder="6901 E Chauncey Lane, Phoenix AZ 85054"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="createProperty()">Create</button>
+    </div>`);
+  setTimeout(() => document.getElementById('new-prop-name')?.focus(), 50);
+}
+
+async function createProperty() {
+  const name = document.getElementById('new-prop-name').value.trim();
+  if (!name) { toast('Enter a property name'); return; }
+  const address = document.getElementById('new-prop-addr').value.trim();
+  const { data, error } = await sb.from('properties')
+    .insert({ name, address, last_updated: new Date().toISOString() })
+    .select().single();
+  if (error) { toast('Could not create — check Supabase RLS policy on properties table'); console.error(error); return; }
+  closeModal();
+  await refreshPropertyList();
+  await selectAdminProperty(data.id);
+  toast('Created: ' + name);
+}
+
+async function deleteProperty(id) {
+  if (!confirm('Delete this property and all its data?')) return;
+  await sb.from('buildings').delete().eq('property_id', id);
+  await sb.from('properties').delete().eq('id', id);
+  if (currentPropId === id) { currentPropId = null; currentProp = null; overlayImageUrl = null; }
+  await refreshPropertyList();
+  toast('Deleted');
+}
+
+// ════════════════════════════════════════
+//  PIN MODE
+// ════════════════════════════════════════
+function togglePinMode() {
+  pinModeActive = !pinModeActive;
+  document.getElementById('btn-pin').classList.toggle('active', pinModeActive);
+  const panel = document.getElementById('map-panel');
+  if (pinModeActive) {
+    panel.classList.add('picking');
+    document.getElementById('picking-banner').textContent = 'Click the map to place a building entrance pin · tap 📍 again to exit pin mode';
+    toast('Pin mode on — click map to place');
+  } else {
+    if (!armedPoint && !pickingCenter) panel.classList.remove('picking');
+    toast('Pin mode off');
+  }
+}
+
+function showPinModal() {
+  if (!currentPropId) { toast('Select a property first'); return; }
+  showModal(`<div class="modal-title">Building Pin</div>
+    <div class="field"><label>Building label (e.g. "10", "B", "West Wing")</label>
+      <input type="text" id="pin-label-input" placeholder="10" autofocus></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="cancelPin()">Cancel</button>
+      <button class="btn" onclick="savePin()">Save Pin</button>
+    </div>`);
+  setTimeout(() => document.getElementById('pin-label-input')?.focus(), 50);
+}
+
+function cancelPin() {
+  if (pinTempMarker) { pinTempMarker.setMap(null); pinTempMarker = null; }
+  pendingPinCoord = null;
+  closeModal();
+}
+
+async function savePin() {
+  if (!pendingPinCoord) { toast('No pin location set'); return; }
+  const label = document.getElementById('pin-label-input').value.trim();
+  if (!label) { toast('Enter a building label'); return; }
+  const { data, error } = await sb.from('buildings').insert({
+    property_id: currentPropId, building_label: label,
+    coordinate_lat: pendingPinCoord.lat, coordinate_lng: pendingPinCoord.lng,
+    coordinate_source: 'admin_manual',
+  }).select().single();
+  if (error) { toast('Could not save pin'); console.error(error); return; }
+  if (pinTempMarker) { pinTempMarker.setMap(null); pinTempMarker = null; }
+  pendingPinCoord = null;
+  closeModal();
+  placePinMarker(data);
+  const { count } = await sb.from('buildings').select('*', { count: 'exact', head: true }).eq('property_id', currentPropId);
+  await sb.from('properties').update({ building_count: count, last_updated: new Date().toISOString() }).eq('id', currentPropId);
+  await refreshPropertyList();
+  toast('Pin "' + label + '" saved');
+}
+
+function placePinMarker(pin) {
+  if (pinMarkers[pin.id]) pinMarkers[pin.id].setMap(null);
+  const m = new google.maps.Marker({
+    position: { lat: pin.coordinate_lat, lng: pin.coordinate_lng }, map: adminMap,
+    label: { text: pin.building_label, color: '#fff', fontFamily: 'IBM Plex Mono', fontSize: '11px', fontWeight: '700' },
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#0a7c5c', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+  });
+  pinMarkers[pin.id] = m;
+}
+
+async function refreshPinMarkers() {
+  if (!currentPropId) return;
+  const { data } = await sb.from('buildings').select('*').eq('property_id', currentPropId);
+  Object.values(pinMarkers).forEach(m => m.setMap(null)); pinMarkers = {};
+  if (data) data.forEach(pin => placePinMarker(pin));
+}
+
+// ════════════════════════════════════════
+//  BOUNDARY (in extra drawer — optional)
+// ════════════════════════════════════════
+function startPickingCenter() {
+  closeExtraDrawer();
+  pickingCenter = true;
+  document.getElementById('map-panel').classList.add('picking');
+  document.getElementById('picking-banner').textContent = 'Click map to set property center · Escape to cancel';
+}
+function drawBoundaryPreview() {
+  if (boundaryCircle) { boundaryCircle.setMap(null); boundaryCircle = null; }
+  if (!pendingCenter || !adminMap) return;
+  const r = parseInt(document.getElementById('boundary-radius').value) || 200;
+  boundaryCircle = new google.maps.Circle({
+    map: adminMap, center: pendingCenter, radius: r,
+    strokeColor: '#1a56db', strokeOpacity: 0.5, strokeWeight: 1.5,
+    fillColor: '#1a56db', fillOpacity: 0.06
+  });
+}
+async function saveBoundary() {
+  // Boundary is optional — never block the user if no center is set
+  if (!currentPropId) { toast('Select a property first'); return; }
+  if (!pendingCenter) { toast('Set a center point first — use "Set center" button'); return; }
+  const r = parseInt(document.getElementById('boundary-radius').value) || 200;
+  const { error } = await sb.from('properties').update({
+    centroid_lat: pendingCenter.lat, centroid_lng: pendingCenter.lng,
+    last_updated: new Date().toISOString()
+  }).eq('id', currentPropId);
+  if (error) { toast('Save failed'); return; }
+  drawBoundaryPreview();
+  toast('Boundary saved ✓');
+}
+
+// ════════════════════════════════════════
+//  EXTRA DRAWER
+// ════════════════════════════════════════
+let extraDrawerOpen = false;
+function toggleExtraDrawer() {
+  extraDrawerOpen = !extraDrawerOpen;
+  document.getElementById('extra-drawer').classList.toggle('open', extraDrawerOpen);
+}
+function closeExtraDrawer() {
+  extraDrawerOpen = false;
+  document.getElementById('extra-drawer').classList.remove('open');
+}
+
+// ════════════════════════════════════════
+//  DRIVER MAP
+// ════════════════════════════════════════
+function initDriverMap() {
+  driverMap = new google.maps.Map(document.getElementById('driver-gmap'), {
+    zoom: 17, center: { lat: 33.4484, lng: -112.074 },
+    mapTypeId: 'roadmap', disableDefaultUI: true, gestureHandling: 'greedy',
+  });
+
+  // Track last known driver position — used for snap-on-activate and re-center
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => {
+      driverLastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+      driverMap.setCenter(driverLastPos);
+    }, null, { enableHighAccuracy: true });
+
+    navigator.geolocation.watchPosition(p => {
+      driverLastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+      // No auto-pan — driver controls the map. Re-center button brings them back.
+    }, null, { enableHighAccuracy: true });
+  }
+
+  driverMap.addListener('bounds_changed', drawDriverOverlay);
+  driverMap.addListener('zoom_changed', drawDriverOverlay);
+  driverMap.addListener('center_changed', drawDriverOverlay);
+}
+
+function recenterOnDriver() {
+  if (!driverLastPos || !driverMap) return;
+  driverMap.setCenter(driverLastPos);
+}
+
+async function refreshDriverPropertyList() {
+  const { data, error } = await sb.from('properties').select('id, name, map_asset_url, centroid_lat, centroid_lng, anchor_point_1_lat, anchor_point_1_lng').order('name');
+  const panel = document.getElementById('prop-select-panel');
+  panel.innerHTML = '';
+  if (error || !data?.length) {
+    panel.innerHTML = '<div style="font-size:0.82rem;color:var(--text2);padding:0.5rem;">No properties set up yet.</div>'; return;
+  }
+  data.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'prop-item';
+    d.innerHTML = `<div class="prop-status-dot ${p.map_asset_url ? 'ok' : ''}"></div>
+      <div><div class="prop-name">${p.name}</div>
+      <div class="prop-meta">${p.map_asset_url ? 'Overlay ready' : 'No overlay yet'}</div></div>`;
+    d.onclick = () => selectDriverProperty(p.id);
+    panel.appendChild(d);
+  });
+}
+
+function togglePropertySelect() {
+  document.getElementById('prop-select-panel').classList.toggle('open');
+}
+
+async function selectDriverProperty(id) {
+  document.getElementById('prop-select-panel').classList.remove('open');
+  const { data, error } = await sb.from('properties').select('*').eq('id', id).single();
+  if (error || !data) { toast('Could not load property'); return; }
+  currentPropId = id; currentProp = data;
+  document.getElementById('prop-chip-label').textContent = data.name;
+  const hasOverlay = !!(data.map_asset_url && data.anchor_point_1_img_x != null && data.anchor_point_1_lat != null);
+  document.getElementById('prop-dot').className = hasOverlay ? 'ok' : '';
+  document.getElementById('activate-btn').disabled = !hasOverlay;
+  if (!hasOverlay) {
+    if (!data.map_asset_url) toast('No overlay image for this property yet');
+    else toast('Overlay image exists but alignment not saved — re-do in Admin');
+  }
+  // Center map on property
+  if (data.centroid_lat && data.centroid_lng) {
+    driverMap.setCenter({ lat: data.centroid_lat, lng: data.centroid_lng });
+    driverMap.setZoom(18);
+  } else if (data.anchor_point_1_lat) {
+    driverMap.setCenter({ lat: data.anchor_point_1_lat, lng: data.anchor_point_1_lng });
+    driverMap.setZoom(18);
+  }
+}
+
+async function toggleOverlay() {
+  if (!currentProp) return;
+  const hasOverlay = !!(currentProp.map_asset_url && currentProp.anchor_point_1_img_x != null && currentProp.anchor_point_1_lat != null);
+  if (!hasOverlay) { toast('Alignment not complete for this property — finish in Admin first'); return; }
+  overlayActive = !overlayActive;
+  const btn = document.getElementById('activate-btn');
+  const canvas = document.getElementById('overlay-canvas');
+  const recenterBtn = document.getElementById('recenter-btn');
+  if (overlayActive) {
+    btn.textContent = '◼ Hide Overlay'; btn.classList.add('active');
+    document.getElementById('opacity-row').style.display = 'flex';
+    canvas.classList.add('visible');
+    recenterBtn.classList.add('visible');
+    await acquireWakeLock();
+    // Snap map to driver position on activate
+    if (driverLastPos) driverMap.setCenter(driverLastPos);
+    driverOverlayImage = new Image();
+    driverOverlayImage.crossOrigin = 'anonymous';
+    driverOverlayImage.onload = drawDriverOverlay;
+    driverOverlayImage.src = currentProp.map_asset_url;
+    overlayTransform = {
+      aImg: { x: currentProp.anchor_point_1_img_x, y: currentProp.anchor_point_1_img_y },
+      bImg: { x: currentProp.anchor_point_2_img_x, y: currentProp.anchor_point_2_img_y },
+      aMap: { lat: currentProp.anchor_point_1_lat, lng: currentProp.anchor_point_1_lng },
+      bMap: { lat: currentProp.anchor_point_2_lat, lng: currentProp.anchor_point_2_lng },
+    };
+  } else {
+    btn.textContent = 'Show Property Overlay'; btn.classList.remove('active');
+    document.getElementById('opacity-row').style.display = 'none';
+    canvas.classList.remove('visible');
+    recenterBtn.classList.remove('visible');
+    releaseWakeLock(); driverOverlayImage = null;
+    canvas.getContext('2d').clearRect(0, 0, 9999, 9999);
+  }
+}
+
+function updateOpacity(val) {
+  overlayOpacity = val / 100;
+  document.getElementById('opacity-val').textContent = val + '%';
+  drawDriverOverlay();
+}
+
+function drawDriverOverlay() {
+  if (!overlayActive || !driverOverlayImage || !driverMap || !overlayTransform) return;
+  const canvas = document.getElementById('overlay-canvas');
+  const mapDiv = document.getElementById('driver-gmap');
+  canvas.width = mapDiv.offsetWidth; canvas.height = mapDiv.offsetHeight;
+  renderOverlayToCanvas(canvas, driverOverlayImage, driverMap, {
+    a: { img: overlayTransform.aImg, map: overlayTransform.aMap },
+    b: { img: overlayTransform.bImg, map: overlayTransform.bMap }
+  }, overlayOpacity);
+}
+
+// ════════════════════════════════════════
+//  WAKE LOCK
+// ════════════════════════════════════════
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    document.getElementById('wakelock-dot').classList.add('on');
+    wakeLock.addEventListener('release', () => document.getElementById('wakelock-dot').classList.remove('on'));
+  } catch(e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  document.getElementById('wakelock-dot').classList.remove('on');
+}
+
+// ════════════════════════════════════════
+//  MODAL / TOAST
+// ════════════════════════════════════════
+function showModal(html) { document.getElementById('modal-content').innerHTML = html; document.getElementById('modal-backdrop').classList.add('open'); }
+function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); }
+document.getElementById('modal-backdrop').addEventListener('click', e => { if (e.target === document.getElementById('modal-backdrop')) closeModal(); });
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (armedPoint) {
+      const wasSet = getPointData(armedPoint);
+      setPointState(armedPoint, wasSet ? 'set' : 'dormant');
+      armedPoint = null;
+    }
+    pickingCenter = false;
+    if (!pinModeActive) document.getElementById('map-panel')?.classList.remove('picking');
+    closeExtraDrawer();
+  }
+  if (e.key === 'Enter' && document.getElementById('screen-apikey').classList.contains('active')) saveApiKey();
+});
+
+// ════════════════════════════════════════
+//  START
+// ════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', setupImgInteraction);
+init();
+</script>
+</body>
+</html>
