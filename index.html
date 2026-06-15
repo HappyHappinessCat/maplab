@@ -2007,6 +2007,8 @@ function startGeigerCompass() {
     else if (e.alpha !== null) geigerRealHeading = 360 - e.alpha;
   }, true);
 }
+
+function showPinPopup(domEvent, lat, lng) {
   const popup = document.getElementById('pin-popup');
   // Position popup over the pin on screen
   const mapDiv = document.getElementById('driver-gmap');
