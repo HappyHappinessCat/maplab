@@ -6,11 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f5f3ef">
-<title>Maplab v0.8</title>
+<title>Maplab v0.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style> 
+<style>
 :root {
   --bg: #f5f3ef;
   --surface: #ffffff;
@@ -469,7 +469,46 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 #recenter-btn.visible { display: flex; }
 #recenter-btn:active { background: var(--surface2); transform: scale(0.94); }
 
-/* Destination address input — collapsed by default */
+/* Geiger full-screen overlay */
+#geiger-screen {
+  position: absolute; inset: 0; background: #111;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 50; gap: 1.75rem; padding: 2rem 1.5rem;
+}
+#geiger-screen.active { display: flex; }
+#geiger-dist { font-size: 3.5rem; font-weight: 400; color: #fff; letter-spacing: -0.02em; line-height: 1; text-align: center; }
+#geiger-unit { font-size: 0.72rem; color: #555; margin-top: 0.3rem; text-align: center; text-transform: uppercase; letter-spacing: 0.08em; }
+#geiger-arrow-wrap { position: relative; width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; }
+#geiger-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid #222; }
+#geiger-ring2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid #1a1a1a; }
+#geiger-svg { width: 130px; height: 130px; }
+#geiger-arrived { display: none; position: absolute; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; }
+#geiger-arrived.show { display: flex; }
+#geiger-arrived-label { color: #4ade80; font-size: 1rem; letter-spacing: 0.05em; }
+#geiger-status { font-size: 0.75rem; color: #444; text-align: center; line-height: 1.6; }
+#geiger-compass-btn {
+  padding: 0.6rem 1.5rem; background: #1a1a2e; border: 1px solid #2a2a5a;
+  border-radius: 8px; color: #7ab3f0; font-size: 0.78rem; cursor: pointer;
+  font-family: var(--sans); transition: background 0.2s;
+}
+#geiger-compass-btn.active { background: #0d2a1a; border-color: #1a5a2a; color: #4ade80; }
+
+/* Two-button view toggle row */
+#view-toggle-row {
+  display: none; flex-direction: row; gap: 0; width: 100%;
+  border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+}
+#view-toggle-row.visible { display: flex; }
+#btn-overlay-view, #btn-geiger-view {
+  flex: 1; padding: 0.75rem 0.5rem; font-size: 0.82rem; font-weight: 500;
+  border: none; cursor: pointer; font-family: var(--sans);
+  background: var(--surface); color: var(--text2);
+  transition: background 0.15s, color 0.15s;
+}
+#btn-overlay-view { border-right: 1px solid var(--border); }
+#btn-overlay-view.active { background: var(--accent); color: #fff; }
+#btn-geiger-view.active { background: #1a5a2a; color: #4ade80; }
 #dest-row {
   display: flex; flex-direction: column; gap: 0.4rem;
 }
@@ -544,7 +583,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-apikey" class="screen active">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.8</div>
+    <div class="vtag">v0.9</div>
   </div>
   <div class="center-card">
     <div class="card-title">Google Maps Setup</div>
@@ -561,7 +600,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-mode" class="screen">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.8</div>
+    <div class="vtag">v0.9</div>
   </div>
   <div class="mode-grid">
     <div class="mode-card" onclick="enterMode('driver')">
@@ -584,7 +623,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
     <span class="badge admin">Admin</span>
-    <div class="vtag">v0.8</div>
+    <div class="vtag">v0.9</div>
     <span class="sdot" id="sb-dot" style="margin-left:0.25rem;"></span>
     <span id="sb-label" style="font-size:0.7rem;color:var(--text3);">connecting…</span>
 
@@ -765,7 +804,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="driver-screen" class="screen">
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
-    <div class="vtag">v0.8</div>
+    <div class="vtag">v0.9</div>
     <div id="property-chip" onclick="togglePropertySelect()" style="margin-left:0.4rem;">
       <div id="prop-dot"></div>
       <span id="prop-chip-label">Select property</span>
@@ -789,6 +828,30 @@ input[type=range].driver-slider::-webkit-slider-thumb {
         <button class="btn ghost xs" onclick="closePinPopup()">Cancel</button>
       </div>
     </div>
+    <!-- Geiger full-screen layer sits inside map-wrap so topbar stays visible -->
+    <div id="geiger-screen">
+      <div>
+        <div id="geiger-dist">—</div>
+        <div id="geiger-unit">set a destination pin</div>
+      </div>
+      <div id="geiger-arrow-wrap">
+        <div id="geiger-ring"></div>
+        <div id="geiger-ring2"></div>
+        <svg id="geiger-svg" viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
+          <polygon id="geiger-arrow" points="65,16 85,86 65,72 45,86" fill="#4285F4"/>
+          <circle cx="65" cy="65" r="5" fill="#ffffff" opacity="0.15"/>
+        </svg>
+        <div id="geiger-arrived">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="33" fill="#0d2a1a" stroke="#1a5a2a" stroke-width="1"/>
+            <polyline points="18,35 28,45 52,21" fill="none" stroke="#4ade80" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div id="geiger-arrived-label">You're there</div>
+        </div>
+      </div>
+      <div id="geiger-status">Rotate phone until arrow points forward<br>then walk that direction</div>
+      <button id="geiger-compass-btn" onclick="tryGeigerCompass()">Enable compass sensor</button>
+    </div>
   </div>
   <div id="driver-controls">
     <div class="slider-row" id="opacity-row" style="display:none;">
@@ -800,11 +863,16 @@ input[type=range].driver-slider::-webkit-slider-thumb {
     <div id="dest-row">
       <button id="dest-toggle" onclick="toggleDestInput()">＋ Set destination</button>
       <div id="dest-input-wrap">
-        <input type="text" id="dest-address-input" placeholder="Address or tap map to drop pin"
+        <input type="text" id="dest-address-input" placeholder="Paste address or tap map"
                onkeydown="if(event.key==='Enter')geocodeDestination()">
         <button class="btn sm" id="dest-set-btn" onclick="geocodeDestination()">Go</button>
         <button class="btn danger sm" id="dest-clear-btn" onclick="clearDestinationPin()">✕</button>
       </div>
+    </div>
+    <!-- Two-state view toggle: appears once destination pin exists -->
+    <div id="view-toggle-row">
+      <button id="btn-overlay-view" onclick="setView('overlay')">Map overlay</button>
+      <button id="btn-geiger-view" onclick="setView('geiger')">Geiger</button>
     </div>
     <button id="activate-btn" class="btn" onclick="toggleOverlay()" disabled>Show Property Overlay</button>
   </div>
@@ -863,10 +931,18 @@ let previewActive = false, previewImage = null;
 
 // Driver
 let driverOverlayImage = null, overlayTransform = null, overlayOpacity = 0.5;
-let driverLastPos = null; // last known GPS position
-let destinationPin = null; // google.maps.Marker for driver-dropped destination
-let recenterStep = 0;    // double-action re-center: 0=unset, 1=context, 2=close
-let destInputOpen = false; // whether address input is expanded
+let driverLastPos = null;
+let destinationPin = null;
+let recenterStep = 0;
+let destInputOpen = false;
+
+// Geiger mode
+let geigerActive = false;
+let geigerAnimFrame = null;
+let geigerSmoothAngle = 0;
+let geigerPrevAngle = 0;
+let geigerRealHeading = 0;
+let geigerUsingCompass = false;
 
 // ════════════════════════════════════════
 //  INIT
@@ -895,12 +971,14 @@ function showScreen(id) {
 }
 function goToMode() {
   if (overlayActive) toggleOverlay();
+  if (geigerActive) { geigerActive = false; stopGeigerLoop(); }
   releaseWakeLock();
   if (destinationPin) { destinationPin.setMap(null); destinationPin = null; }
   if (driverMap && driverMap._blueDot) { driverMap._blueDot.setMap(null); driverMap._blueDot = null; }
   if (driverMap && driverMap._accuracyCircle) { driverMap._accuracyCircle.setMap(null); driverMap._accuracyCircle = null; }
   driverMap = null; adminMap = null; currentPropId = null; currentProp = null; overlayImageUrl = null;
   driverLastPos = null; recenterStep = 0; destInputOpen = false;
+  geigerActive = false; geigerUsingCompass = false; geigerSmoothAngle = 0; geigerPrevAngle = 0;
   showScreen('screen-mode');
 }
 
@@ -1787,15 +1865,148 @@ function dropDestinationPin(lat, lng, label) {
     },
     zIndex: 100,
   });
-  // Tap existing pin → show popup with clear option
   destinationPin.addListener('click', e => {
     showPinPopup(e.domEvent, lat, lng);
   });
   document.getElementById('dest-clear-btn').classList.add('visible');
-  toast('Destination pin dropped — tap pin to clear');
+  document.getElementById('view-toggle-row').classList.add('visible');
+  // If geiger is active, update it with new destination
+  if (geigerActive) updateGeigerDisplay();
+  toast('Destination set — use toggle to switch views');
 }
 
-function showPinPopup(domEvent, lat, lng) {
+function clearDestinationPin() {
+  if (destinationPin) { destinationPin.setMap(null); destinationPin = null; }
+  document.getElementById('dest-clear-btn').classList.remove('visible');
+  document.getElementById('dest-address-input').value = '';
+  document.getElementById('view-toggle-row').classList.remove('visible');
+  closePinPopup();
+  // Exit geiger if active
+  if (geigerActive) setView('overlay');
+  toast('Destination cleared');
+}
+
+// ── View toggle ──
+function setView(mode) {
+  if (mode === 'geiger') {
+    geigerActive = true;
+    document.getElementById('geiger-screen').classList.add('active');
+    document.getElementById('btn-geiger-view').classList.add('active');
+    document.getElementById('btn-overlay-view').classList.remove('active');
+    document.getElementById('recenter-btn').classList.remove('visible');
+    startGeigerLoop();
+    // Request compass on first activation
+    if (!geigerUsingCompass) tryGeigerCompass();
+  } else {
+    geigerActive = false;
+    document.getElementById('geiger-screen').classList.remove('active');
+    document.getElementById('btn-overlay-view').classList.add('active');
+    document.getElementById('btn-geiger-view').classList.remove('active');
+    if (overlayActive) document.getElementById('recenter-btn').classList.add('visible');
+    stopGeigerLoop();
+  }
+}
+
+// ── Geiger bearing math ──
+function haversineBearing(from, to) {
+  const toRad = d => d * Math.PI / 180;
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat), lat2 = toRad(to.lat);
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function haversineDistance(from, to) {
+  const R = 20902231; // Earth radius in feet
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getGeigerColor(dist) {
+  if (dist < 30) return '#4ade80';
+  if (dist < 120) return '#facc15';
+  return '#4285F4';
+}
+
+function updateGeigerDisplay() {
+  if (!destinationPin || !driverLastPos) {
+    document.getElementById('geiger-unit').textContent = 'waiting for GPS…';
+    return;
+  }
+  const dest = { lat: destinationPin.getPosition().lat(), lng: destinationPin.getPosition().lng() };
+  const bearing = haversineBearing(driverLastPos, dest);
+  const dist = Math.round(haversineDistance(driverLastPos, dest));
+  const relAngle = (bearing - geigerRealHeading + 360) % 360;
+
+  // Shortest path interpolation — no spin bug
+  let delta = relAngle - geigerPrevAngle;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  geigerSmoothAngle += delta * 0.3;
+  geigerPrevAngle = geigerSmoothAngle;
+
+  const color = getGeigerColor(dist);
+  const arrived = dist < 20;
+
+  document.getElementById('geiger-svg').style.transform = `rotate(${geigerSmoothAngle}deg)`;
+  document.getElementById('geiger-arrow').setAttribute('fill', color);
+  document.getElementById('geiger-dist').textContent = arrived ? '0' : dist;
+  document.getElementById('geiger-dist').style.color = color;
+  document.getElementById('geiger-unit').textContent = arrived ? 'destination reached' : 'feet away';
+
+  const arrivedEl = document.getElementById('geiger-arrived');
+  document.getElementById('geiger-svg').style.opacity = arrived ? '0' : '1';
+  arrivedEl.classList.toggle('show', arrived);
+}
+
+function startGeigerLoop() {
+  if (geigerAnimFrame) return;
+  function loop() {
+    updateGeigerDisplay();
+    geigerAnimFrame = requestAnimationFrame(loop);
+  }
+  geigerAnimFrame = requestAnimationFrame(loop);
+}
+
+function stopGeigerLoop() {
+  if (geigerAnimFrame) { cancelAnimationFrame(geigerAnimFrame); geigerAnimFrame = null; }
+}
+
+function tryGeigerCompass() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') startGeigerCompass();
+      else document.getElementById('geiger-status').textContent = 'Compass permission denied';
+    }).catch(() => {
+      document.getElementById('geiger-status').textContent = 'Could not access compass';
+    });
+  } else if (window.DeviceOrientationEvent) {
+    startGeigerCompass();
+  } else {
+    document.getElementById('geiger-status').textContent = 'No compass sensor on this device';
+  }
+}
+
+function startGeigerCompass() {
+  geigerUsingCompass = true;
+  const btn = document.getElementById('geiger-compass-btn');
+  btn.textContent = 'Compass active';
+  btn.classList.add('active');
+  document.getElementById('geiger-status').textContent = 'Rotate phone — arrow points to destination';
+
+  window.addEventListener('deviceorientationabsolute', e => {
+    if (e.alpha !== null) geigerRealHeading = 360 - e.alpha;
+  }, true);
+  window.addEventListener('deviceorientation', e => {
+    if (e.webkitCompassHeading !== undefined) geigerRealHeading = e.webkitCompassHeading;
+    else if (e.alpha !== null) geigerRealHeading = 360 - e.alpha;
+  }, true);
+}
   const popup = document.getElementById('pin-popup');
   // Position popup over the pin on screen
   const mapDiv = document.getElementById('driver-gmap');
@@ -1816,13 +2027,6 @@ function closePinPopup() {
   document.getElementById('pin-popup').classList.remove('open');
 }
 
-function clearDestinationPin() {
-  if (destinationPin) { destinationPin.setMap(null); destinationPin = null; }
-  document.getElementById('dest-clear-btn').classList.remove('visible');
-  document.getElementById('dest-address-input').value = '';
-  closePinPopup();
-  toast('Destination cleared');
-}
 
 function toggleDestInput() {
   destInputOpen = !destInputOpen;
