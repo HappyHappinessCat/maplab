@@ -1933,8 +1933,23 @@ function getGeigerColor(dist) {
 }
 
 function updateGeigerDisplay() {
-  if (!destinationPin || !driverLastPos) {
+  if (!driverLastPos) {
     document.getElementById('geiger-unit').textContent = 'waiting for GPS…';
+    document.getElementById('geiger-dist').textContent = '—';
+    return;
+  }
+  if (!destinationPin) {
+    document.getElementById('geiger-dist').textContent = '—';
+    document.getElementById('geiger-unit').textContent = 'tap map to drop destination pin';
+    // Still show compass heading so driver can orient
+    const relAngle = (0 - geigerRealHeading + 360) % 360;
+    let delta = relAngle - geigerPrevAngle;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    geigerSmoothAngle += delta * 0.3;
+    geigerPrevAngle = geigerSmoothAngle;
+    document.getElementById('geiger-svg').style.transform = `rotate(${geigerSmoothAngle}deg)`;
+    document.getElementById('geiger-arrow').setAttribute('fill', '#444');
     return;
   }
   const dest = { lat: destinationPin.getPosition().lat(), lng: destinationPin.getPosition().lng() };
@@ -2103,13 +2118,16 @@ async function toggleOverlay() {
   const btn = document.getElementById('activate-btn');
   const canvas = document.getElementById('overlay-canvas');
   const recenterBtn = document.getElementById('recenter-btn');
+  const toggleRow = document.getElementById('view-toggle-row');
   if (overlayActive) {
     btn.textContent = '◼ Hide Overlay'; btn.classList.add('active');
     document.getElementById('opacity-row').style.display = 'flex';
     canvas.classList.add('visible');
     recenterBtn.classList.add('visible');
+    toggleRow.classList.add('visible');
+    document.getElementById('btn-overlay-view').classList.add('active');
+    document.getElementById('btn-geiger-view').classList.remove('active');
     await acquireWakeLock();
-    // Snap map to driver position on activate
     if (driverLastPos) driverMap.setCenter(driverLastPos);
     driverOverlayImage = new Image();
     driverOverlayImage.crossOrigin = 'anonymous';
@@ -2126,6 +2144,9 @@ async function toggleOverlay() {
     document.getElementById('opacity-row').style.display = 'none';
     canvas.classList.remove('visible');
     recenterBtn.classList.remove('visible');
+    toggleRow.classList.remove('visible');
+    document.getElementById('btn-overlay-view').classList.remove('active');
+    if (geigerActive) setView('overlay');
     releaseWakeLock(); driverOverlayImage = null;
     canvas.getContext('2d').clearRect(0, 0, 9999, 9999);
   }
