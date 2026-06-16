@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f5f3ef">
-<title>Maplab v0.9</title>
+<title>Maplab v0.9.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -583,7 +583,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-apikey" class="screen active">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.9</div>
+    <div class="vtag">v0.9.4</div>
   </div>
   <div class="center-card">
     <div class="card-title">Google Maps Setup</div>
@@ -600,7 +600,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="screen-mode" class="screen">
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
     <div class="logo" style="font-size:1.5rem;">map<em>lab</em></div>
-    <div class="vtag">v0.9</div>
+    <div class="vtag">v0.9.4</div>
   </div>
   <div class="mode-grid">
     <div class="mode-card" onclick="enterMode('driver')">
@@ -623,7 +623,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
     <span class="badge admin">Admin</span>
-    <div class="vtag">v0.9</div>
+    <div class="vtag">v0.9.4</div>
     <span class="sdot" id="sb-dot" style="margin-left:0.25rem;"></span>
     <span id="sb-label" style="font-size:0.7rem;color:var(--text3);">connecting…</span>
 
@@ -804,7 +804,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 <div id="driver-screen" class="screen">
   <div class="topbar">
     <div class="logo">map<em>lab</em></div>
-    <div class="vtag">v0.9</div>
+    <div class="vtag">v0.9.4</div>
     <div id="property-chip" onclick="togglePropertySelect()" style="margin-left:0.4rem;">
       <div id="prop-dot"></div>
       <span id="prop-chip-label">Select property</span>
@@ -943,6 +943,9 @@ let geigerSmoothAngle = 0;
 let geigerPrevAngle = 0;
 let geigerRealHeading = 0;
 let geigerUsingCompass = false;
+let geigerHeadingBuffer = [];       // circular buffer for heading smoothing
+const GEIGER_HEADING_SAMPLES = 7;   // number of samples to average (≈ 7 sensor events ≈ 0.5s)
+let geigerAbsoluteActive = false;   // true once deviceorientationabsolute fires a real value
 
 // ════════════════════════════════════════
 //  INIT
@@ -979,6 +982,7 @@ function goToMode() {
   driverMap = null; adminMap = null; currentPropId = null; currentProp = null; overlayImageUrl = null;
   driverLastPos = null; recenterStep = 0; destInputOpen = false;
   geigerActive = false; geigerUsingCompass = false; geigerSmoothAngle = 0; geigerPrevAngle = 0;
+  geigerHeadingBuffer = []; geigerAbsoluteActive = false;
   showScreen('screen-mode');
 }
 
@@ -1941,12 +1945,12 @@ function updateGeigerDisplay() {
   if (!destinationPin) {
     document.getElementById('geiger-dist').textContent = '—';
     document.getElementById('geiger-unit').textContent = 'tap map to drop destination pin';
-    // Still show compass heading so driver can orient
+    // Show north pointer so driver can orient phone
     const relAngle = (0 - geigerRealHeading + 360) % 360;
     let delta = relAngle - geigerPrevAngle;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
-    geigerSmoothAngle += delta * 0.3;
+    geigerSmoothAngle += delta * 0.12;
     geigerPrevAngle = geigerSmoothAngle;
     document.getElementById('geiger-svg').style.transform = `rotate(${geigerSmoothAngle}deg)`;
     document.getElementById('geiger-arrow').setAttribute('fill', '#444');
@@ -1957,11 +1961,12 @@ function updateGeigerDisplay() {
   const dist = Math.round(haversineDistance(driverLastPos, dest));
   const relAngle = (bearing - geigerRealHeading + 360) % 360;
 
-  // Shortest path interpolation — no spin bug
+  // Gentle output smoothing — 0.12 per frame at 60fps ≈ moves ~half-way in 0.5s
+  // At near-range navigation (20–200ft), ±15° imprecision is acceptable and stable beats twitchy
   let delta = relAngle - geigerPrevAngle;
   if (delta > 180) delta -= 360;
   if (delta < -180) delta += 360;
-  geigerSmoothAngle += delta * 0.3;
+  geigerSmoothAngle += delta * 0.12;
   geigerPrevAngle = geigerSmoothAngle;
 
   const color = getGeigerColor(dist);
@@ -2014,12 +2019,36 @@ function startGeigerCompass() {
   btn.classList.add('active');
   document.getElementById('geiger-status').textContent = 'Rotate phone — arrow points to destination';
 
+  // Helper: push a raw heading into the circular buffer and compute circular mean
+  function applyHeading(rawHeading) {
+    geigerHeadingBuffer.push(rawHeading);
+    if (geigerHeadingBuffer.length > GEIGER_HEADING_SAMPLES) geigerHeadingBuffer.shift();
+    // Circular mean — handles 0°/360° wrap correctly
+    let sinSum = 0, cosSum = 0;
+    for (const h of geigerHeadingBuffer) {
+      const r = h * Math.PI / 180;
+      sinSum += Math.sin(r);
+      cosSum += Math.cos(r);
+    }
+    geigerRealHeading = (Math.atan2(sinSum, cosSum) * 180 / Math.PI + 360) % 360;
+  }
+
+  // Prefer deviceorientationabsolute (Android Chrome) — true magnetic north
   window.addEventListener('deviceorientationabsolute', e => {
-    if (e.alpha !== null) geigerRealHeading = 360 - e.alpha;
+    if (e.alpha === null) return;
+    geigerAbsoluteActive = true;
+    // deviceorientationabsolute: alpha is CCW from north, so heading = 360 - alpha
+    applyHeading((360 - e.alpha) % 360);
   }, true);
+
+  // Fallback: deviceorientation — only use it if absolute never fired
   window.addEventListener('deviceorientation', e => {
-    if (e.webkitCompassHeading !== undefined) geigerRealHeading = e.webkitCompassHeading;
-    else if (e.alpha !== null) geigerRealHeading = 360 - e.alpha;
+    if (geigerAbsoluteActive) return; // absolute is running, don't interfere
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      // iOS: webkitCompassHeading is already true magnetic north heading
+      applyHeading(e.webkitCompassHeading);
+    }
+    // Do NOT fall back to 360-alpha here — alpha is relative to device boot, not north
   }, true);
 }
 
