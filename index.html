@@ -469,6 +469,24 @@ input[type=range].driver-slider::-webkit-slider-thumb {
 #recenter-btn.visible { display: flex; }
 #recenter-btn:active { background: var(--surface2); transform: scale(0.94); }
 
+/* Heading-up toggle — sits above recenter btn */
+#heading-up-btn {
+  position: absolute; bottom: 5rem; right: 1rem;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 20; font-size: 1.1rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  color: var(--text2);
+}
+#heading-up-btn.visible { display: flex; }
+#heading-up-btn.active {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; box-shadow: 0 2px 8px rgba(26,86,219,0.35);
+}
+#heading-up-btn:active { transform: scale(0.94); }
+
 /* Geiger full-screen overlay */
 #geiger-screen {
   position: absolute; inset: 0; background: #111;
@@ -821,6 +839,7 @@ input[type=range].driver-slider::-webkit-slider-thumb {
     <canvas id="overlay-canvas"></canvas>
     <div id="prop-select-panel"></div>
     <button id="recenter-btn" onclick="recenterOnDriver()" title="Re-center on my location">◎</button>
+    <button id="heading-up-btn" onclick="toggleHeadingUp()" title="Toggle heading-up map rotation">⬆</button>
     <div id="pin-popup">
       <div class="pin-popup-label">Destination pin</div>
       <div class="pin-popup-btns">
@@ -946,6 +965,7 @@ let geigerUsingCompass = false;
 let geigerHeadingBuffer = [];       // circular buffer for heading smoothing
 const GEIGER_HEADING_SAMPLES = 7;   // number of samples to average (≈ 7 sensor events ≈ 0.5s)
 let geigerAbsoluteActive = false;   // true once deviceorientationabsolute fires a real value
+let headingUp = false;              // whether map rotates to stay heading-up
 
 // ════════════════════════════════════════
 //  INIT
@@ -983,6 +1003,7 @@ function goToMode() {
   driverLastPos = null; recenterStep = 0; destInputOpen = false;
   geigerActive = false; geigerUsingCompass = false; geigerSmoothAngle = 0; geigerPrevAngle = 0;
   geigerHeadingBuffer = []; geigerAbsoluteActive = false;
+  headingUp = false;
   showScreen('screen-mode');
 }
 
@@ -1854,6 +1875,24 @@ function recenterOnDriver() {
   recenterStep = (recenterStep === 1) ? 2 : 1;
   driverMap.setCenter(driverLastPos);
   driverMap.setZoom(recenterStep === 1 ? 17 : 19);
+  if (headingUp) driverMap.setHeading(geigerRealHeading);
+}
+
+function toggleHeadingUp() {
+  headingUp = !headingUp;
+  const btn = document.getElementById('heading-up-btn');
+  btn.classList.toggle('active', headingUp);
+  if (headingUp) {
+    // Kick off compass if not already running
+    if (!geigerUsingCompass) tryGeigerCompass();
+    driverMap.setHeading(geigerRealHeading);
+    // Recenter so the rotation is immediately meaningful
+    if (driverLastPos) driverMap.setCenter(driverLastPos);
+    toast('Heading-up on — map rotates with you');
+  } else {
+    driverMap.setHeading(0);
+    toast('North-up restored');
+  }
 }
 
 // ── Destination pin ──
@@ -1898,6 +1937,7 @@ function setView(mode) {
     document.getElementById('btn-geiger-view').classList.add('active');
     document.getElementById('btn-overlay-view').classList.remove('active');
     document.getElementById('recenter-btn').classList.remove('visible');
+    document.getElementById('heading-up-btn').classList.remove('visible');
     startGeigerLoop();
     // Request compass on first activation
     if (!geigerUsingCompass) tryGeigerCompass();
@@ -1906,7 +1946,10 @@ function setView(mode) {
     document.getElementById('geiger-screen').classList.remove('active');
     document.getElementById('btn-overlay-view').classList.add('active');
     document.getElementById('btn-geiger-view').classList.remove('active');
-    if (overlayActive) document.getElementById('recenter-btn').classList.add('visible');
+    if (overlayActive) {
+      document.getElementById('recenter-btn').classList.add('visible');
+      document.getElementById('heading-up-btn').classList.add('visible');
+    }
     stopGeigerLoop();
   }
 }
@@ -2031,6 +2074,8 @@ function startGeigerCompass() {
       cosSum += Math.cos(r);
     }
     geigerRealHeading = (Math.atan2(sinSum, cosSum) * 180 / Math.PI + 360) % 360;
+    // If heading-up map mode is on, rotate the map to match
+    if (headingUp && driverMap) driverMap.setHeading(geigerRealHeading);
   }
 
   // Prefer deviceorientationabsolute (Android Chrome) — true magnetic north
@@ -2147,12 +2192,14 @@ async function toggleOverlay() {
   const btn = document.getElementById('activate-btn');
   const canvas = document.getElementById('overlay-canvas');
   const recenterBtn = document.getElementById('recenter-btn');
+  const headingUpBtn = document.getElementById('heading-up-btn');
   const toggleRow = document.getElementById('view-toggle-row');
   if (overlayActive) {
     btn.textContent = '◼ Hide Overlay'; btn.classList.add('active');
     document.getElementById('opacity-row').style.display = 'flex';
     canvas.classList.add('visible');
     recenterBtn.classList.add('visible');
+    headingUpBtn.classList.add('visible');
     toggleRow.classList.add('visible');
     document.getElementById('btn-overlay-view').classList.add('active');
     document.getElementById('btn-geiger-view').classList.remove('active');
@@ -2173,9 +2220,12 @@ async function toggleOverlay() {
     document.getElementById('opacity-row').style.display = 'none';
     canvas.classList.remove('visible');
     recenterBtn.classList.remove('visible');
+    headingUpBtn.classList.remove('visible');
     toggleRow.classList.remove('visible');
     document.getElementById('btn-overlay-view').classList.remove('active');
     if (geigerActive) setView('overlay');
+    // Reset heading-up state when overlay is dismissed
+    if (headingUp) { headingUp = false; headingUpBtn.classList.remove('active'); driverMap.setHeading(0); }
     releaseWakeLock(); driverOverlayImage = null;
     canvas.getContext('2d').clearRect(0, 0, 9999, 9999);
   }
