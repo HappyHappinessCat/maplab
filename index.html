@@ -1804,7 +1804,7 @@ function closeExtraDrawer() {
 function initDriverMap() {
   driverMap = new google.maps.Map(document.getElementById('driver-gmap'), {
     zoom: 17, center: { lat: 33.4484, lng: -112.074 },
-    mapTypeId: 'roadmap', disableDefaultUI: true, gestureHandling: 'greedy',
+    mapTypeId: 'hybrid', disableDefaultUI: true, gestureHandling: 'greedy',
   });
 
   // ── Blue dot: re-enable location display that disableDefaultUI killed ──
