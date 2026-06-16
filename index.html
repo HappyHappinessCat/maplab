@@ -1849,10 +1849,12 @@ function initDriverMap() {
       driverMap._accuracyCircle.setCenter({ lat, lng });
       driverMap._accuracyCircle.setRadius(accuracy);
 
-      // On first good fix, center the map
+      // On first good fix, center the map and show navigation buttons
       if (firstFix) {
         firstFix = false;
         driverMap.setCenter({ lat, lng });
+        document.getElementById('recenter-btn').classList.add('visible');
+        document.getElementById('heading-up-btn').classList.add('visible');
       }
     }, null, { enableHighAccuracy: true, maximumAge: 5000 });
   }
@@ -1936,20 +1938,13 @@ function setView(mode) {
     document.getElementById('geiger-screen').classList.add('active');
     document.getElementById('btn-geiger-view').classList.add('active');
     document.getElementById('btn-overlay-view').classList.remove('active');
-    document.getElementById('recenter-btn').classList.remove('visible');
-    document.getElementById('heading-up-btn').classList.remove('visible');
     startGeigerLoop();
-    // Request compass on first activation
     if (!geigerUsingCompass) tryGeigerCompass();
   } else {
     geigerActive = false;
     document.getElementById('geiger-screen').classList.remove('active');
     document.getElementById('btn-overlay-view').classList.add('active');
     document.getElementById('btn-geiger-view').classList.remove('active');
-    if (overlayActive) {
-      document.getElementById('recenter-btn').classList.add('visible');
-      document.getElementById('heading-up-btn').classList.add('visible');
-    }
     stopGeigerLoop();
   }
 }
@@ -2191,20 +2186,15 @@ async function toggleOverlay() {
   overlayActive = !overlayActive;
   const btn = document.getElementById('activate-btn');
   const canvas = document.getElementById('overlay-canvas');
-  const recenterBtn = document.getElementById('recenter-btn');
-  const headingUpBtn = document.getElementById('heading-up-btn');
   const toggleRow = document.getElementById('view-toggle-row');
   if (overlayActive) {
     btn.textContent = '◼ Hide Overlay'; btn.classList.add('active');
     document.getElementById('opacity-row').style.display = 'flex';
     canvas.classList.add('visible');
-    recenterBtn.classList.add('visible');
-    headingUpBtn.classList.add('visible');
     toggleRow.classList.add('visible');
     document.getElementById('btn-overlay-view').classList.add('active');
     document.getElementById('btn-geiger-view').classList.remove('active');
     await acquireWakeLock();
-    if (driverLastPos) driverMap.setCenter(driverLastPos);
     driverOverlayImage = new Image();
     driverOverlayImage.crossOrigin = 'anonymous';
     driverOverlayImage.onload = drawDriverOverlay;
@@ -2219,8 +2209,6 @@ async function toggleOverlay() {
     btn.textContent = 'Show Property Overlay'; btn.classList.remove('active');
     document.getElementById('opacity-row').style.display = 'none';
     canvas.classList.remove('visible');
-    recenterBtn.classList.remove('visible');
-    headingUpBtn.classList.remove('visible');
     toggleRow.classList.remove('visible');
     document.getElementById('btn-overlay-view').classList.remove('active');
     if (geigerActive) setView('overlay');
@@ -2241,7 +2229,9 @@ function drawDriverOverlay() {
   if (!overlayActive || !driverOverlayImage || !driverMap || !overlayTransform) return;
   const canvas = document.getElementById('overlay-canvas');
   const mapDiv = document.getElementById('driver-gmap');
-  canvas.width = mapDiv.offsetWidth; canvas.height = mapDiv.offsetHeight;
+  // Only resize when dimensions actually changed — resizing clears canvas and can swallow touch events
+  const w = mapDiv.offsetWidth, h = mapDiv.offsetHeight;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   renderOverlayToCanvas(canvas, driverOverlayImage, driverMap, {
     a: { img: overlayTransform.aImg, map: overlayTransform.aMap },
     b: { img: overlayTransform.bImg, map: overlayTransform.bMap }
